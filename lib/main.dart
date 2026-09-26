@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'core/app_theme.dart';
-import 'screens/auth/auth_gate.dart'; // 👈 Import AuthGate
+import 'screens/splash_screen.dart'; // Import SplashScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -18,10 +14,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Kostly',
+      title: 'KostLy',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const AuthGate(), // 👈 Arahkan ke AuthGate
+      theme: ThemeData(
+        fontFamily: 'Poppins', // Sesuaikan font jika ada
+      ),
+      home: const SplashScreen(), // 👈 Atur ke SplashScreen di sini
     );
   }
 }

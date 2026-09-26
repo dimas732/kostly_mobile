@@ -65,10 +65,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: AppTheme.primaryBlue,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(
-                          Icons.home_rounded,
-                          color: Colors.white,
-                          size: 24,
+                        child: Image.asset(
+                          'assets/img/logo_kostly.png',
+                          width: 24,
+                          height: 24,
                         ),
                       ),
                       const SizedBox(width: 10),
