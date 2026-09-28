@@ -10,8 +10,8 @@ class KosModel {
   final String description;
   final String status;
   final String image;
-  final Map<String, int> reccuringCost;
-  final Map<String, int> electricalCost;
+  final Map reccuringCost;
+  final Map electricalCost;
   final DateTime? createdAt;
 
   KosModel({
@@ -29,11 +29,15 @@ class KosModel {
     this.createdAt,
   });
 
-  factory KosModel.fromFirestore(Map<String, dynamic> json, String documentId) {
-    // Helper untuk konversi Map dari Firestore
-    Map<String, int> parseMap(dynamic mapData) {
-      Map<String, int> result = {};
-      if (mapData is Map<String, dynamic>) {
+  // 💡 1. toMap() langsung mengembalikan toFirestore() agar selalu sinkron
+  Map<String, dynamic> toMap() {
+    return toFirestore();
+  }
+  // 💡 2. Menggunakan Map secara eksplisit
+  factory KosModel.fromFirestore(Map json, String documentId) {
+    Map parseMap(dynamic mapData) {
+      Map result = {};
+      if (mapData is Map) {
         mapData.forEach((key, value) {
           result[key] = (value as num).toInt();
         });
@@ -46,7 +50,7 @@ class KosModel {
       userId: json['user_id'] ?? '',
       name: json['name'] ?? '',
       rentPrice: (json['rent_price'] ?? 0) as int,
-      type: json['type'] ?? '',
+      type: json['type'] ?? 'Putra',
       address: json['address'] ?? '',
       description: json['description'] ?? '',
       status: json['status'] ?? 'available',
@@ -59,6 +63,7 @@ class KosModel {
     );
   }
 
+  // 💡 3. Konsisten menggunakan snake_case dan return Map
   Map<String, dynamic> toFirestore() {
     return {
       'user_id': userId,
@@ -71,7 +76,9 @@ class KosModel {
       'image': image,
       'reccuring_cost': reccuringCost,
       'electrical_cost': electricalCost,
-      'created_at': createdAt ?? FieldValue.serverTimestamp(),
+      'created_at': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
     };
   }
 }

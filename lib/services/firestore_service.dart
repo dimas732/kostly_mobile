@@ -21,4 +21,16 @@ class FirestoreService {
     }
     return null;
   }
+
+  Future addKost(KosModel kost) async{
+    await _db.collection('kost').add(kost.toMap());
+  }
+
+  Future updateKost(KosModel kost) async{
+    await _db.collection('kost').doc(kost.id).update(kost.toMap());
+  }
+
+  Future deleteKos(String kostId) async {
+    await _db.collection('kost').doc(kostId).delete();
+  }
 }

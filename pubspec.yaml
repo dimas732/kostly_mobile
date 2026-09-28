@@ -42,7 +42,7 @@ dev_dependencies:
   # Firebase & Database
   firebase_core: ^3.0.0
   cloud_firestore: ^5.0.0
-  firebase_auth: ^5.0.0
+  firebase_auth: ^5.6.5
 
   # Utilitas & UI
   url_launcher: ^6.3.0

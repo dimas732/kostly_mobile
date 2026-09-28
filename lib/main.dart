@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:kost_ly/screens/auth/auth_gate.dart';
 import 'screens/splash_screen.dart'; // Import SplashScreen
 
 void main() async {
