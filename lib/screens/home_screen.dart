@@ -1,20 +1,27 @@
-import 'package:flutter/material.dart';
-import '../services/firestore_service.dart';
-import '../models/kos_model.dart';
-import '../widgets/kos_card.dart';
-import '../core/app_theme.dart';
-import '../services/auth_service.dart';
 import 'dart:ui';
+import 'package:flutter/material.dart';
+
+import '../core/app_theme.dart';
+import '../models/kos_model.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+import '../widgets/kos_card.dart';
+import 'details_kos_screen.dart';
+import 'auth/auth_gate.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State {
+class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
+
+  // 🔍 Controller & Variabel untuk Search
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   int _selectedBottomNav = 0;
   String _selectedCategory = 'Semua';
@@ -23,7 +30,35 @@ class _HomeScreenState extends State {
   double _currentPos = 0.0;
   bool _isDragging = false;
 
-  final List _categories = ['Semua', 'Putra', 'Putri', 'Campur'];
+  final List<String> _categories = ['Semua', 'Putra', 'Putri', 'Campur'];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _openDetail(KosModel kost) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DetailScreen(kost: kost),
+      ),
+    );
+  }
+
+  Future<void> _handleSignOut() async {
+    // 1. Jalankan fungsi Sign Out dari Firebase
+    await AuthService().signOut();
+
+    if (!mounted) return;
+
+    // 2. Bersihkan seluruh tumpukan navigasi dan kembalikan ke AuthGate
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const AuthGate()),
+          (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,9 +100,7 @@ class _HomeScreenState extends State {
                       ),
                       IconButton(
                         icon: const Icon(Icons.logout, size: 24, color: Colors.redAccent),
-                        onPressed: () async {
-                          await AuthService().signOut();
-                        },
+                        onPressed: _handleSignOut,
                       ),
                     ],
                   ),
@@ -83,13 +116,30 @@ class _HomeScreenState extends State {
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: const TextField(
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
                   decoration: InputDecoration(
-                    hintText: 'Cari kos...',
-                    hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey),
+                    hintText: 'Cari kos atau lokasi...',
+                    hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        setState(() {
+                          _searchController.clear();
+                          _searchQuery = '';
+                        });
+                      },
+                    )
+                        : null,
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               ),
@@ -138,58 +188,56 @@ class _HomeScreenState extends State {
 
             const SizedBox(height: 16),
 
-            // 4. Katalog Kos (Grid Firestore)
+            // 4. Katalog Kos (Grid Firestore + Search Integration)
             Expanded(
-              child: StreamBuilder(
-              stream: _firestoreService.getDaftarKos(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+              child: StreamBuilder<List<KosModel>>(
+                stream: _searchQuery.isNotEmpty
+                    ? _firestoreService.searchDaftarKos(_searchQuery)
+                    : _firestoreService.getDaftarKos(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (snapshot.hasError) {
-                  return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
-                }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
+                  }
 
-                List daftarKos = snapshot.data ?? [];
+                  List<KosModel> daftarKos = snapshot.data ?? [];
 
-                if (_selectedCategory != 'Semua') {
-                  daftarKos = daftarKos
-                      .where((kost) => kost.type.toLowerCase() == _selectedCategory.toLowerCase())
-                      .toList();
-                }
+                  if (_selectedCategory != 'Semua') {
+                    daftarKos = daftarKos
+                        .where((kost) => kost.type.toLowerCase() == _selectedCategory.toLowerCase())
+                        .toList();
+                  }
 
-                if (daftarKos.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'Tidak ada kos kategori $_selectedCategory',
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                  );
-                }
-
-                return GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 0.68,
-                  ),
-                  itemCount: daftarKos.length,
-                  itemBuilder: (context, index) {
-                    final kost = daftarKos[index];
-                    return KosCard(
-                      kost: kost,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Memilih ${kost.name}')),
-                        );
-                      },
+                  if (daftarKos.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'Kos tidak ditemukan',
+                        style: TextStyle(color: Colors.grey),
+                      ),
                     );
-                  },
-                );
-              },
+                  }
+
+                  return GridView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                      childAspectRatio: 0.68,
+                    ),
+                    itemCount: daftarKos.length,
+                    itemBuilder: (context, index) {
+                      final kost = daftarKos[index];
+                      return KosCard(
+                        kost: kost,
+                        onTap: () => _openDetail(kost),
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -219,7 +267,7 @@ class _HomeScreenState extends State {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.75), // Efek frosted glass pekat
+                  color: Colors.white.withOpacity(0.75),
                   borderRadius: BorderRadius.circular(40),
                   border: Border.all(
                     color: Colors.white.withOpacity(0.6),
@@ -237,19 +285,14 @@ class _HomeScreenState extends State {
 
                     final double itemWidth = constraints.maxWidth / items.length;
 
-                    // Fungsi menghitung posisi desimal berdasarkan koordinat jari
                     void updatePositionFromOffset(Offset localPosition) {
-                      // Hitung offset agar posisi bubble tepat berada di tengah ujung jari
                       double pos = (localPosition.dx - (itemWidth / 2)) / itemWidth;
-                      // Batasi nilai agar tidak kebablasan keluar dari nav bar (0.0 s/d 3.0)
-                      pos = pos.clamp(0.0, items.length - 1.0);
-
+                      pos = pos.clamp(0.0, (items.length - 1).toDouble());
                       setState(() {
                         _currentPos = pos;
                       });
                     }
 
-                    // Fungsi untuk mengunci (snap) posisi ke item terdekat saat jari dilepas
                     void snapToNearest() {
                       int nearestIndex = _currentPos.round();
                       setState(() {
@@ -262,7 +305,7 @@ class _HomeScreenState extends State {
                     return GestureDetector(
                       onHorizontalDragStart: (details) {
                         setState(() {
-                          _isDragging = true; // Matikan durasi animasi agar merespon instant
+                          _isDragging = true;
                         });
                         updatePositionFromOffset(details.localPosition);
                       },
@@ -270,11 +313,11 @@ class _HomeScreenState extends State {
                         updatePositionFromOffset(details.localPosition);
                       },
                       onHorizontalDragEnd: (details) {
-                        snapToNearest(); // Melepas jari -> animasi snap ke tab terdekat
+                        snapToNearest();
                       },
                       onTapDown: (details) {
                         setState(() {
-                          _isDragging = false; // Aktifkan animasi smooth saat di-tap
+                          _isDragging = false;
                         });
                         updatePositionFromOffset(details.localPosition);
                         snapToNearest();
@@ -282,13 +325,12 @@ class _HomeScreenState extends State {
                       child: Stack(
                         alignment: Alignment.centerLeft,
                         children: [
-                          // 💡 1. BUBBLE KACA YANG MENGIKUTI POSISI JARI SECARA DINAMIS
                           AnimatedPositioned(
                             duration: _isDragging
-                                ? Duration.zero // Instant tanpa delay saat ditarik jari
-                                : const Duration(milliseconds: 300), // Membal halus saat di-tap / dilepas
+                                ? Duration.zero
+                                : const Duration(milliseconds: 300),
                             curve: Curves.easeOutCubic,
-                            left: _currentPos * itemWidth + 4, // Geser posisi horizontal X
+                            left: (_currentPos * itemWidth) + 4,
                             top: 4,
                             bottom: 4,
                             width: itemWidth - 8,
@@ -303,14 +345,9 @@ class _HomeScreenState extends State {
                               ),
                             ),
                           ),
-
-                          // 💡 2. IKON DAN TEKS
                           Row(
                             children: List.generate(items.length, (index) {
-                              // Hitung jarak bubble ke ikon ini (0.0 = pas di atas ikon)
                               final double distance = (_currentPos - index).abs();
-
-                              // Warna & Opacity transisi halus berdasarkan jarak bubble
                               final double activeFactor = (1.0 - distance).clamp(0.0, 1.0);
 
                               return Expanded(
@@ -320,7 +357,6 @@ class _HomeScreenState extends State {
                                   children: [
                                     Icon(
                                       items[index]['icon'] as IconData,
-                                      // Gradasi warna ikon dari Hitam ke Primary secara instan/halus
                                       color: Color.lerp(
                                         Colors.black45,
                                         AppTheme.primaryBlue,
@@ -328,10 +364,8 @@ class _HomeScreenState extends State {
                                       ),
                                       size: 21,
                                     ),
-
-                                    // Teks memudar (*fade in/out*) sesuai jarak bubble dengan jari
                                     if (activeFactor > 0.1) ...[
-                                      const SizedBox(height: 2),
+                                      const SizedBox(width: 4),
                                       Opacity(
                                         opacity: activeFactor,
                                         child: Text(

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '/../screens/auth/login_screen.dart';
 import '/../screens/admin_screen.dart';
 import '/../screens/home_screen.dart';
+import '/../screens/welcome_screen.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -24,8 +25,11 @@ class AuthGate extends StatelessWidget {
 
         // 2. Jika belum login, arahkan ke LoginScreen
         if (!snapshot.hasData) {
-          return const LoginScreen();
+          return const WelcomeScreen();
         }
+
+        // welcome screen
+
 
         final user = snapshot.data!;
 
@@ -39,7 +43,7 @@ class AuthGate extends StatelessWidget {
 
             if (snapshot.hasData && snapshot.data!.exists) {
               final data = snapshot.data!.data() as Map?;
-              final role = (data?['roles'] ?? '').toString().toLowerCase().trim();
+              final role = (data?['roles'] ?? data?['role'] ?? '').toString().toLowerCase().trim();
 
               // 🔍 CEK DI RUN / DEBUG CONSOLE ANDROID STUDIO:
               debugPrint("=== DEBUG USER ROLE ===");

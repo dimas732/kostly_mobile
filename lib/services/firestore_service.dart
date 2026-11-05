@@ -13,6 +13,26 @@ class FirestoreService {
     });
   }
 
+  // fitur search
+  Stream<List<KosModel>> searchDaftarKos(String query) {
+    // Mengambil seluruh data, lalu difilter secara lokal agar pencarian lebih fleksibel (case-insensitive)
+    return _db.collection('kos').snapshots().map((snapshot) {
+      List<KosModel> semuaKos = snapshot.docs
+          .map((doc) => KosModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+          .toList();
+
+      if (query.isEmpty) return semuaKos;
+
+      return semuaKos.where((kos) {
+        final namaKos = kos.name.toLowerCase();
+        final lokasiKos = kos.address.toLowerCase();
+        final searchQuery = query.toLowerCase();
+
+        return namaKos.contains(searchQuery) || lokasiKos.contains(searchQuery);
+      }).toList();
+    });
+  }
+
   // Ambil detail 1 kos berdasarkan ID (untuk Halaman Detail nanti)
   Future<KosModel?> getKosById(String id) async {
     final doc = await _db.collection('kost').doc(id).get();

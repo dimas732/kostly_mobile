@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-import '../../core/app_theme.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -48,6 +47,12 @@ class _LoginScreenState extends State<LoginScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } else {
+      // ✅ Solusi agar layar langsung berpindah:
+      // Tutup LoginScreen agar AuthGate di bawahnya langsung mengambil alih tampilan Home/Admin
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -55,9 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF38BDF8),
-        ),
+        color: const Color(0xFF38BDF8),
         child: SafeArea(
           bottom: false,
           child: Column(
@@ -67,15 +70,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(36),
-                          topRight: Radius.circular(36),
+                    // 1. Latar Putih Memenuhi Seluruh Sisa Layar ke Bawah
+                    Positioned.fill(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(36),
+                            topRight: Radius.circular(36),
+                          ),
                         ),
                       ),
+                    ),
+
+                    // 2. Isi Form Memenuhi Layar & BISA DI-SCROLL
+                    Positioned.fill(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(28.0, 50.0, 28.0, 28.0),
                         child: Form(
@@ -162,7 +171,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ? const SizedBox(
                                     height: 22,
                                     width: 22,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
                                   )
                                       : const Text(
                                     'Login',
@@ -185,14 +197,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Text(
-                                    'Don\u2019t have an account? ',
+                                    'Don’t have an account? ',
                                     style: TextStyle(color: Colors.black87, fontSize: 14),
                                   ),
                                   GestureDetector(
                                     onTap: () {
                                       Navigator.push(
                                         context,
-                                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                                        MaterialPageRoute(
+                                          builder: (context) => const RegisterScreen(),
+                                        ),
                                       );
                                     },
                                     child: const Text(
@@ -211,6 +225,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+
+                    // 3. Logo Melayang di Atas Card
                     Positioned(
                       top: -40,
                       left: 0,
