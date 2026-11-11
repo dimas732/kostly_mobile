@@ -1,4 +1,8 @@
+import 'dart:convert'; // 🔹 Wajib untuk konversi base64
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/kos_model.dart';
 import '../services/firestore_service.dart';
@@ -6,175 +10,253 @@ import '../core/app_theme.dart';
 
 class AddEditKosScreen extends StatefulWidget {
   final KosModel? kost;
-
   const AddEditKosScreen({super.key, this.kost});
 
   @override
-  State createState() => _AddEditKosScreenState();
+  State<AddEditKosScreen> createState() => _AddEditKosScreenState();
 }
 
 class _AddEditKosScreenState extends State<AddEditKosScreen> {
   final _formKey = GlobalKey<FormState>();
   final FirestoreService _firestoreService = FirestoreService();
 
+  // Controller Text Form
   late TextEditingController _nameController;
   late TextEditingController _addressController;
-  late TextEditingController _rentPriceController;
-  late TextEditingController _imageController;
-  late TextEditingController _descriptionController;
-
-  late TextEditingController _waterCostController;
-  late TextEditingController _wifiCostController;
-  late TextEditingController _tokenCostController;
+  late TextEditingController _priceController;
+  late TextEditingController _descController;
+  late TextEditingController _airController;
+  late TextEditingController _wifiController;
+  late TextEditingController _listrikController;
 
   String _selectedType = 'Putra';
   String _selectedStatus = 'available';
+
+  // State untuk Multi Image & Base64
+  final ImagePicker _picker = ImagePicker();
+  List<String> _localImageBase64List = []; // Menyimpan string Base64 foto baru
+  List<String> _existingImages = []; // Menyimpan foto lama (jika mode edit)
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Membaca data dari widget.kost
     _nameController = TextEditingController(text: widget.kost?.name ?? '');
     _addressController = TextEditingController(text: widget.kost?.address ?? '');
-    _rentPriceController = TextEditingController(text: widget.kost?.rentPrice.toString() ?? '');
-    _imageController = TextEditingController(text: widget.kost?.image ?? '');
-    _descriptionController = TextEditingController(text: widget.kost?.description ?? '');
+    _priceController = TextEditingController(text: widget.kost?.rentPrice.toString() ?? '');
+    _descController = TextEditingController(text: widget.kost?.description ?? '');
 
-    _selectedType = (widget.kost?.type.isNotEmpty == true) ? widget.kost!.type : 'Putra';
-    _selectedStatus = (widget.kost?.status.isNotEmpty == true) ? widget.kost!.status : 'available';
+    _airController = TextEditingController(text: widget.kost?.reccuringCost['air']?.toString() ?? '0');
+    _wifiController = TextEditingController(text: widget.kost?.reccuringCost['wifi']?.toString() ?? '0');
+    _listrikController = TextEditingController(text: widget.kost?.electricalCost['listrik']?.toString() ?? '0');
 
-    _waterCostController = TextEditingController(
-      text: widget.kost?.reccuringCost['air']?.toString() ?? '0',
-    );
-    _wifiCostController = TextEditingController(
-      text: widget.kost?.reccuringCost['wifi']?.toString() ?? '0',
-    );
-    _tokenCostController = TextEditingController(
-      text: widget.kost?.electricalCost['token']?.toString() ?? '0',
-    );
+    if (widget.kost != null) {
+      _selectedType = widget.kost!.type;
+      _selectedStatus = widget.kost!.status;
+      _existingImages = List.from(widget.kost!.images);
+    }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _addressController.dispose();
-    _rentPriceController.dispose();
-    _imageController.dispose();
-    _descriptionController.dispose();
-    _waterCostController.dispose();
-    _wifiCostController.dispose();
-    _tokenCostController.dispose();
-    super.dispose();
+  // 🔹 Fungsi Pilih Banyak Gambar & Konversi ke Base64
+  // 🔹 Perbarui fungsi _pickAndConvertImages dengan kompresi ukuran
+  Future<void> _pickAndConvertImages() async {
+    try {
+      final List<XFile> pickedFiles = await _picker.pickMultiImage(
+        maxWidth: 600,  // 👈 Batasi lebar maksimal gambar agar ukurannya kecil
+        maxHeight: 600, // 👈 Batasi tinggi maksimal gambar
+        imageQuality: 50, // 👈 Kompres kualitas gambar ke 50% agar hemat kapasitas Firestore
+      );
+
+      if (pickedFiles.isNotEmpty) {
+        for (var file in pickedFiles) {
+          Uint8List imageBytes = await file.readAsBytes();
+          String base64String = 'data:image/jpeg;base64,${base64Encode(imageBytes)}';
+
+          setState(() {
+            _localImageBase64List.add(base64String);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Gagal memilih/kompres gambar: $e");
+    }
   }
 
-  Future _saveKos() async {
+  // 🔹 Simpan Data ke Firestore
+  Future<void> _saveForm() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_existingImages.isEmpty && _localImageBase64List.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Harap pilih minimal 1 foto kos!')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
-      final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+      // Gabungkan gambar lama dan gambar baru berformat Base64
+      List<String> finalImages = [..._existingImages, ..._localImageBase64List];
 
-      final Map reccuringMap = {
-        'air': int.tryParse(_waterCostController.text.trim()) ?? 0,
-        'wifi': int.tryParse(_wifiCostController.text.trim()) ?? 0,
-      };
+      final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-      final Map electricalMap = {
-        'token': int.tryParse(_tokenCostController.text.trim()) ?? 0,
-      };
-
-      final newKos = KosModel(
+      final kosData = KosModel(
         id: widget.kost?.id ?? '',
-        userId: widget.kost?.userId.isNotEmpty == true ? widget.kost!.userId : currentUserId,
+        userId: userId,
         name: _nameController.text.trim(),
         address: _addressController.text.trim(),
-        rentPrice: int.parse(_rentPriceController.text.trim()),
+        rentPrice: int.tryParse(_priceController.text) ?? 0,
         type: _selectedType,
         status: _selectedStatus,
-        image: _imageController.text.trim(),
-        description: _descriptionController.text.trim(),
-        reccuringCost: reccuringMap,
-        electricalCost: electricalMap,
+        description: _descController.text.trim(),
+        images: finalImages, // 👈 Tersimpan aman langsung di Firestore
+        reccuringCost: {
+          'air': int.tryParse(_airController.text) ?? 0,
+          'wifi': int.tryParse(_wifiController.text) ?? 0,
+        },
+        electricalCost: {
+          'listrik': int.tryParse(_listrikController.text) ?? 0,
+        },
         createdAt: widget.kost?.createdAt,
       );
 
       if (widget.kost == null) {
-        await _firestoreService.addKost(newKos);
+        await _firestoreService.addKost(kosData);
       } else {
-        await _firestoreService.updateKost(newKos);
+        await _firestoreService.updateKost(kosData);
       }
 
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.kost == null ? 'Kos berhasil ditambahkan!' : 'Data kos berhasil diperbarui!'),
-          ),
-        );
-      }
+      if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // Helper untuk menampilkan gambar baik dari Base64 maupun URL lama
+  Widget _buildImageThumbnail(String imagePath, VoidCallback onDelete) {
+    Widget imageWidget;
+    if (imagePath.startsWith('data:image')) {
+      try {
+        final base64Str = imagePath.split(',').last;
+        final bytes = base64Decode(base64Str);
+        imageWidget = Image.memory(bytes, width: 100, height: 100, fit: BoxFit.cover);
+      } catch (e) {
+        imageWidget = Container(width: 100, height: 100, color: Colors.grey, child: const Icon(Icons.broken_image));
+      }
+    } else if (imagePath.isNotEmpty) {
+      imageWidget = Image.network(imagePath, width: 100, height: 100, fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image),
+      );
+    } else {
+      imageWidget = Container(width: 100, height: 100, color: Colors.grey);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: imageWidget,
+          ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: onDelete,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bool isEdit = widget.kost != null;
-
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit Data Kos' : 'Tambah Kos Baru'),
+        title: Text(widget.kost == null ? 'Tambah Kos Baru' : 'Edit Kos'),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTextField(_nameController, 'Nama Kos', 'Contoh: Kos Ketintang Indah'),
-              const SizedBox(height: 14),
-              _buildTextField(_addressController, 'Alamat Lengkap', 'Jl. Ketintang No. 12, Surabaya'),
-              const SizedBox(height: 14),
-              _buildTextField(
-                _rentPriceController,
-                'Harga Sewa Utama (Rp/Bulan)',
-                '750000',
-                isNumber: true,
+              // Nama Kos
+              const Text('Nama Kos', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  hintText: 'Contoh: Kos Ketintang Indah',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                validator: (v) => v!.isEmpty ? 'Nama kos tidak boleh kosong' : null,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
+              // Alamat Lengkap
+              const Text('Alamat Lengkap', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _addressController,
+                decoration: InputDecoration(
+                  hintText: 'Jl. Ketintang No. 12, Surabaya',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                validator: (v) => v!.isEmpty ? 'Alamat tidak boleh kosong' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Harga Sewa
+              const Text('Harga Sewa Utama (Rp/Bulan)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _priceController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: '750000',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                validator: (v) => v!.isEmpty ? 'Harga tidak boleh kosong' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Dropdown Tipe & Status
               Row(
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Tipe Kos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField(
+                        const Text('Tipe Kos', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
                           value: _selectedType,
+                          items: ['Putra', 'Putri', 'Campur']
+                              .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                              .toList(),
+                          onChanged: (val) => setState(() => _selectedType = val!),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           ),
-                          items: ['Putra', 'Putri', 'Campur'].map((t) {
-                            return DropdownMenuItem(value: t, child: Text(t));
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedType = val);
-                          },
                         ),
                       ],
                     ),
@@ -184,72 +266,135 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Status Kamar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField(
+                        const Text('Status Kamar', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
                           value: _selectedStatus,
+                          items: [
+                            const DropdownMenuItem(value: 'available', child: Text('Tersedia')),
+                            const DropdownMenuItem(value: 'full', child: Text('Penuh')),
+                          ],
+                          onChanged: (val) => setState(() => _selectedStatus = val!),
                           decoration: InputDecoration(
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: 'available', child: Text('Tersedia')),
-                            DropdownMenuItem(value: 'full', child: Text('Penuh')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedStatus = val);
-                          },
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
 
-              _buildTextField(_imageController, 'URL Gambar Kos', 'https://...'),
-              const SizedBox(height: 14),
+              // BAGIAN UPLOAD FOTO (BASE64)
+              const Text('Foto-Foto Kos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    // Tombol Tambah Foto
+                    GestureDetector(
+                      onTap: _pickAndConvertImages,
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade400),
+                        ),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo, color: Colors.grey),
+                            SizedBox(height: 4),
+                            Text('Tambah', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
 
-              const Text('Biaya Tambahan & Listrik (Opsional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    // Foto Lama
+                    ..._existingImages.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      return _buildImageThumbnail(entry.value, () {
+                        setState(() => _existingImages.removeAt(index));
+                      });
+                    }),
+
+                    // Foto Baru (Base64)
+                    ..._localImageBase64List.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      return _buildImageThumbnail(entry.value, () {
+                        setState(() => _localImageBase64List.removeAt(index));
+                      });
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Biaya Tambahan & Listrik
+              const Text('Biaya Tambahan & Listrik (Opsional)', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
-                    child: _buildTextField(_waterCostController, 'Air (Rp/bln)', '0', isNumber: true),
+                    child: TextFormField(
+                      controller: _airController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(labelText: 'Air (Rp/bln)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildTextField(_wifiCostController, 'WiFi (Rp/bln)', '0', isNumber: true),
+                    child: TextFormField(
+                      controller: _wifiController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(labelText: 'WiFi (Rp/bln)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildTextField(_tokenCostController, 'Listrik (Rp)', '0', isNumber: true),
+                    child: TextFormField(
+                      controller: _listrikController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(labelText: 'Listrik (Rp)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
-              _buildTextField(_descriptionController, 'Deskripsi Kos', 'Fasilitas, aturan, dll.', maxLines: 3),
-              const SizedBox(height: 28),
+              // Deskripsi Kos
+              const Text('Deskripsi Kos', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _descController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Fasilitas, aturan, dll.',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 30),
 
+              // Tombol Submit
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryBlue,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: _isLoading ? null : _saveKos,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                    isEdit ? 'Simpan Perubahan' : 'Tambah Kos Sekarang',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                  onPressed: _saveForm,
+                  child: Text(
+                    widget.kost == null ? 'Tambah Kos Sekarang' : 'Simpan Perubahan',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ),
               ),
@@ -257,39 +402,6 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildTextField(
-      TextEditingController controller,
-      String label,
-      String hint, {
-        bool isNumber = false,
-        int maxLines = 1,
-      }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-          maxLines: maxLines,
-          validator: (val) {
-            if (!isNumber && (val == null || val.isEmpty)) {
-              return '$label wajib diisi';
-            }
-            return null;
-          },
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -8,6 +8,7 @@ import '../services/firestore_service.dart';
 import '../widgets/kos_card.dart';
 import 'details_kos_screen.dart';
 import 'auth/auth_gate.dart';
+import 'auth/profile_screen.dart'; // Import halaman profil kamu di sini
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,12 +49,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _handleSignOut() async {
-    // 1. Jalankan fungsi Sign Out dari Firebase
     await AuthService().signOut();
 
     if (!mounted) return;
 
-    // 2. Bersihkan seluruh tumpukan navigasi dan kembalikan ke AuthGate
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const AuthGate()),
           (route) => false,
@@ -62,186 +61,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Daftar halaman utama berdasarkan urutan ikon BottomNavigationBar:
+    // 0: Home (Katalog Kos)
+    // 1: Tab Cari (bisa diarahkan ke halaman search khusus jika ada)
+    // 2: Tab Favorit
+    // 3: Tab Profil (ProfileScreen)
+    final List<Widget> pages = [
+      _buildHomeContent(), // Tampilan utama katalog kos
+      const Center(child: Text('Halaman Cari / Explore', style: TextStyle(fontSize: 16, color: Colors.grey))),
+      const Center(child: Text('Halaman Favorit Saya', style: TextStyle(fontSize: 16, color: Colors.grey))),
+      const ProfilScreen(), // Halaman profil yang sudah kamu buat
+    ];
+
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 1. Header (Judul & Notifikasi & Logout)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Image.asset(
-                        'assets/img/logo_kostly(fix).png',
-                        height: 32,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'KostLy',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.notifications_none_rounded, size: 26),
-                        color: Colors.black87,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.logout, size: 24, color: Colors.redAccent),
-                        onPressed: _handleSignOut,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // 2. Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Cari kos atau lokasi...',
-                    hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 3. Category Filter Chips
-            SizedBox(
-              height: 38,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: _categories.length,
-                itemBuilder: (context, index) {
-                  final category = _categories[index];
-                  final isSelected = _selectedCategory == category;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: ChoiceChip(
-                      label: Text(category),
-                      selected: isSelected,
-                      selectedColor: AppTheme.primaryBlue,
-                      backgroundColor: Colors.grey[200],
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.grey[700],
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 13,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: const BorderSide(color: Colors.transparent),
-                      ),
-                      showCheckmark: false,
-                      onSelected: (bool selected) {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 4. Katalog Kos (Grid Firestore + Search Integration)
-            Expanded(
-              child: StreamBuilder<List<KosModel>>(
-                stream: _searchQuery.isNotEmpty
-                    ? _firestoreService.searchDaftarKos(_searchQuery)
-                    : _firestoreService.getDaftarKos(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
-                  }
-
-                  List<KosModel> daftarKos = snapshot.data ?? [];
-
-                  if (_selectedCategory != 'Semua') {
-                    daftarKos = daftarKos
-                        .where((kost) => kost.type.toLowerCase() == _selectedCategory.toLowerCase())
-                        .toList();
-                  }
-
-                  if (daftarKos.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'Kos tidak ditemukan',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    );
-                  }
-
-                  return GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 14,
-                      mainAxisSpacing: 14,
-                      childAspectRatio: 0.68,
-                    ),
-                    itemCount: daftarKos.length,
-                    itemBuilder: (context, index) {
-                      final kost = daftarKos[index];
-                      return KosCard(
-                        kost: kost,
-                        onTap: () => _openDetail(kost),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+      // Menggunakan IndexedStack agar status/state tiap halaman tetap terjaga saat berpindah tab
+      body: IndexedStack(
+        index: _selectedBottomNav,
+        children: pages,
       ),
 
       // 5. Dynamic Fluid Drag Navigation Bar
@@ -297,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       int nearestIndex = _currentPos.round();
                       setState(() {
                         _currentPos = nearestIndex.toDouble();
-                        _selectedBottomNav = nearestIndex;
+                        _selectedBottomNav = nearestIndex; // Mengubah halaman aktif
                         _isDragging = false;
                       });
                     }
@@ -392,6 +229,189 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // Widget terpisah khusus untuk isi halaman utama Home (Katalog, Search, & Kategori)
+  Widget _buildHomeContent() {
+    return SafeArea(
+      child: Column(
+        children: [
+          // 1. Header (Judul & Notifikasi & Logout)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/img/logo_kostly(fix).png',
+                      height: 32,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'KostLy',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {},
+                      icon: const Icon(Icons.notifications_none_rounded, size: 26),
+                      color: Colors.black87,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.logout, size: 24, color: Colors.redAccent),
+                      onPressed: _handleSignOut,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // 2. Search Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'Cari kos atau lokasi...',
+                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.clear, size: 18),
+                    onPressed: () {
+                      setState(() {
+                        _searchController.clear();
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 3. Category Filter Chips
+          SizedBox(
+            height: 38,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                final category = _categories[index];
+                final isSelected = _selectedCategory == category;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: ChoiceChip(
+                    label: Text(category),
+                    selected: isSelected,
+                    selectedColor: AppTheme.primaryBlue,
+                    backgroundColor: Colors.grey[200],
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.grey[700],
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 13,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: const BorderSide(color: Colors.transparent),
+                    ),
+                    showCheckmark: false,
+                    onSelected: (bool selected) {
+                      setState(() {
+                        _selectedCategory = category;
+                      });
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 4. Katalog Kos (Grid Firestore + Search Integration)
+          Expanded(
+            child: StreamBuilder<List<KosModel>>(
+              stream: _searchQuery.isNotEmpty
+                  ? _firestoreService.searchDaftarKos(_searchQuery)
+                  : _firestoreService.getDaftarKos(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
+                }
+
+                List<KosModel> daftarKos = snapshot.data ?? [];
+
+                if (_selectedCategory != 'Semua') {
+                  daftarKos = daftarKos
+                      .where((kost) => kost.type.toLowerCase() == _selectedCategory.toLowerCase())
+                      .toList();
+                }
+
+                if (daftarKos.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Kos tidak ditemukan',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  );
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: 0.68,
+                  ),
+                  itemCount: daftarKos.length,
+                  itemBuilder: (context, index) {
+                    final kost = daftarKos[index];
+                    return KosCard(
+                      kost: kost,
+                      onTap: () => _openDetail(kost),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

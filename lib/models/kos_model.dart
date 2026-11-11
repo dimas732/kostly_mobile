@@ -9,9 +9,9 @@ class KosModel {
   final String address;
   final String description;
   final String status;
-  final String image;
-  final Map reccuringCost;
-  final Map electricalCost;
+  final List<String> images;
+  final Map<String, int> reccuringCost; // 🔹 Diperketat tipenya
+  final Map<String, int> electricalCost; // 🔹 Diperketat tipenya
   final DateTime? createdAt;
 
   KosModel({
@@ -23,23 +23,31 @@ class KosModel {
     required this.address,
     required this.description,
     required this.status,
-    required this.image,
+    required this.images,
     required this.reccuringCost,
     required this.electricalCost,
     this.createdAt,
   });
 
-  // 💡 1. toMap() langsung mengembalikan toFirestore() agar selalu sinkron
-  Map<String, dynamic> toMap() {
-    return toFirestore();
-  }
-  // 💡 2. Menggunakan Map secara eksplisit
-  factory KosModel.fromFirestore(Map json, String documentId) {
-    Map parseMap(dynamic mapData) {
-      Map result = {};
+  String get image => images.isNotEmpty ? images.first : '';
+
+  Map<String, dynamic> toMap() => toFirestore();
+
+  factory KosModel.fromFirestore(Map<String, dynamic> json, String documentId) {
+    List<String> parseImages(dynamic data) {
+      if (data is List) {
+        return data.map((e) => e.toString()).toList();
+      } else if (data is String && data.isNotEmpty) {
+        return [data];
+      }
+      return [];
+    }
+
+    Map<String, int> parseMap(dynamic mapData) {
+      Map<String, int> result = {};
       if (mapData is Map) {
         mapData.forEach((key, value) {
-          result[key] = (value as num).toInt();
+          result[key.toString()] = int.tryParse(value.toString()) ?? 0;
         });
       }
       return result;
@@ -54,7 +62,7 @@ class KosModel {
       address: json['address'] ?? '',
       description: json['description'] ?? '',
       status: json['status'] ?? 'available',
-      image: json['image'] ?? '',
+      images: parseImages(json['images'] ?? json['image']),
       reccuringCost: parseMap(json['reccuring_cost']),
       electricalCost: parseMap(json['electrical_cost']),
       createdAt: json['created_at'] != null
@@ -63,7 +71,6 @@ class KosModel {
     );
   }
 
-  // 💡 3. Konsisten menggunakan snake_case dan return Map
   Map<String, dynamic> toFirestore() {
     return {
       'user_id': userId,
@@ -73,7 +80,7 @@ class KosModel {
       'address': address,
       'description': description,
       'status': status,
-      'image': image,
+      'images': images,
       'reccuring_cost': reccuringCost,
       'electrical_cost': electricalCost,
       'created_at': createdAt != null
