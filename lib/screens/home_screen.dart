@@ -8,7 +8,7 @@ import '../services/firestore_service.dart';
 import '../widgets/kos_card.dart';
 import 'details_kos_screen.dart';
 import 'auth/auth_gate.dart';
-import 'auth/profile_screen.dart'; // Import halaman profil kamu di sini
+import 'auth/profil.dart'; // Menggunakan profil.dart sesuai struktur project kamu
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedBottomNav = 0;
   String _selectedCategory = 'Semua';
 
-  // dragging bubble
+  // Dragging bubble
   double _currentPos = 0.0;
   bool _isDragging = false;
 
@@ -59,18 +59,33 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Membuka halaman Profil
+  Future<void> _openProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfilScreen()),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _selectedBottomNav = 0;
+      _currentPos = 0.0;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Daftar halaman utama berdasarkan urutan ikon BottomNavigationBar:
     // 0: Home (Katalog Kos)
-    // 1: Tab Cari (bisa diarahkan ke halaman search khusus jika ada)
+    // 1: Tab Cari
     // 2: Tab Favorit
-    // 3: Tab Profil (ProfileScreen)
+    // 3: Tab Profil
     final List<Widget> pages = [
       _buildHomeContent(), // Tampilan utama katalog kos
       const Center(child: Text('Halaman Cari / Explore', style: TextStyle(fontSize: 16, color: Colors.grey))),
       const Center(child: Text('Halaman Favorit Saya', style: TextStyle(fontSize: 16, color: Colors.grey))),
-      const ProfilScreen(), // Halaman profil yang sudah kamu buat
+      const ProfilScreen(),
     ];
 
     return Scaffold(
@@ -81,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: pages,
       ),
 
-      // 5. Dynamic Fluid Drag Navigation Bar
+      // Dynamic Fluid Drag Navigation Bar
       bottomNavigationBar: SafeArea(
         child: Container(
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -122,21 +137,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     final double itemWidth = constraints.maxWidth / items.length;
 
+                    // Menghitung posisi bubble berdasarkan koordinat jari
                     void updatePositionFromOffset(Offset localPosition) {
                       double pos = (localPosition.dx - (itemWidth / 2)) / itemWidth;
                       pos = pos.clamp(0.0, (items.length - 1).toDouble());
+
                       setState(() {
                         _currentPos = pos;
                       });
                     }
 
+                    // Mengunci posisi bubble ke menu terdekat
                     void snapToNearest() {
                       int nearestIndex = _currentPos.round();
+
                       setState(() {
                         _currentPos = nearestIndex.toDouble();
                         _selectedBottomNav = nearestIndex; // Mengubah halaman aktif
                         _isDragging = false;
                       });
+
+                      // Jika menu Profil dipilih
+                      if (nearestIndex == 3) {
+                        _openProfile();
+                      }
                     }
 
                     return GestureDetector(
@@ -162,12 +186,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Stack(
                         alignment: Alignment.centerLeft,
                         children: [
+                          // 1. Bubble kaca
                           AnimatedPositioned(
                             duration: _isDragging
                                 ? Duration.zero
                                 : const Duration(milliseconds: 300),
                             curve: Curves.easeOutCubic,
-                            left: (_currentPos * itemWidth) + 4,
+                            left: _currentPos * itemWidth + 4,
                             top: 4,
                             bottom: 4,
                             width: itemWidth - 8,
@@ -182,6 +207,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
+
+                          // 2. Ikon dan teks navigasi
                           Row(
                             children: List.generate(items.length, (index) {
                               final double distance = (_currentPos - index).abs();
