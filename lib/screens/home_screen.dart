@@ -8,7 +8,7 @@ import '../services/firestore_service.dart';
 import '../widgets/kos_card.dart';
 import 'details_kos_screen.dart';
 import 'auth/auth_gate.dart';
-import 'auth/profile_screen.dart'; // Menggunakan profile_screen.dart sesuai struktur project kamu
+import 'auth/profil.dart'; // Menggunakan profil.dart sesuai struktur project kamu
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -132,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       {'icon': Icons.home_rounded, 'label': 'Home'},
                       {'icon': Icons.search_rounded, 'label': 'Cari'},
                       {'icon': Icons.favorite_rounded, 'label': 'Favorit'},
-                      {'icon': Icons.person_rounded, 'label': 'Profile'},
+                      {'icon': Icons.person_rounded, 'label': 'Profil'},
                     ];
 
                     final double itemWidth = constraints.maxWidth / items.length;
