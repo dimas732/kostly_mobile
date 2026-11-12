@@ -1,10 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/owner_application_model.dart';
-import '../services/telegram_service.dart'; // Import service Telegram yang baru dibuat
+import '../services/telegram_service.dart';
 
 class OwnerRegistrationScreen extends StatefulWidget {
   final String userId;
@@ -48,7 +48,8 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
   Future<void> _pickImage(String type) async {
     final pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 75, // Kompresi ringan agar upload ke Firebase Storage lebih cepat
+      maxWidth: 800,     // Batasi resolusi agar string Base64 ringan di Firestore
+      imageQuality: 60,  // Kompresi kualitas gambar
     );
 
     if (pickedFile != null) {
@@ -62,6 +63,12 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
         }
       });
     }
+  }
+
+  // Fungsi helper untuk mengubah File menjadi String Base64
+  Future<String> _convertFileToBase64(File file) async {
+    List<int> imageBytes = await file.readAsBytes();
+    return base64Encode(imageBytes);
   }
 
   Future<void> _submitApplication() async {
@@ -81,10 +88,10 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Upload ketiga file ke Firebase Storage
-      String ktpUrl = await _uploadFileToStorage(_ktpFile!, 'ktp');
-      String proofUrl = await _uploadFileToStorage(_propertyProofFile!, 'proof');
-      String propertyUrl = await _uploadFileToStorage(_propertyImageFile!, 'property');
+      // 1. Ubah file gambar lokal menjadi string Base64
+      String ktpBase64 = await _convertFileToBase64(_ktpFile!);
+      String proofBase64 = await _convertFileToBase64(_propertyProofFile!);
+      String propertyBase64 = await _convertFileToBase64(_propertyImageFile!);
 
       // 2. Susun objek OwnerApplication
       OwnerApplication newApp = OwnerApplication(
@@ -95,15 +102,15 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
         phoneNumber: _phoneController.text.trim(),
         kosName: _kosNameController.text.trim(),
         kosLocation: _kosLocationController.text.trim(),
-        ktpImageUrl: ktpUrl,
-        propertyProofUrl: proofUrl,
-        propertyImageUrl: propertyUrl,
+        ktpImageUrl: ktpBase64,
+        propertyProofUrl: proofBase64,
+        propertyImageUrl: propertyBase64,
         status: 'pending',
         rejectionReason: '',
         submittedAt: Timestamp.now(),
       );
 
-      // 3. Simpan pengajuan ke Firestore
+      // 3. Simpan data pengajuan ke Firestore
       await FirebaseFirestore.instance
           .collection('owner_applications')
           .doc(widget.userId)
@@ -115,7 +122,7 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
           .doc(widget.userId)
           .update({'verificationStatus': 'pending'});
 
-      // 5. Kirim Notifikasi & Tombol Interaktif ke Bot Telegram Admin
+      // 5. Kirim Notifikasi dan Foto langsung ke Bot Telegram Admin
       await TelegramService.sendOwnerApplicationNotification(
         userId: widget.userId,
         fullName: _fullNameController.text.trim(),
@@ -123,9 +130,9 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
         phoneNumber: _phoneController.text.trim(),
         kosName: _kosNameController.text.trim(),
         kosLocation: _kosLocationController.text.trim(),
-        ktpUrl: ktpUrl,
-        proofUrl: proofUrl,
-        propertyUrl: propertyUrl,
+        ktpFile: _ktpFile!,
+        proofFile: _propertyProofFile!,
+        propertyFile: _propertyImageFile!,
       );
 
       if (!mounted) return;
@@ -150,14 +157,6 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
     }
   }
 
-  Future<String> _uploadFileToStorage(File file, String folderName) async {
-    String fileName = '${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    Reference ref = FirebaseStorage.instance.ref().child('owner_docs/$folderName/$fileName');
-    UploadTask uploadTask = ref.putFile(file);
-    TaskSnapshot snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,7 +177,7 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Mengunggah dokumen verifikasi...', style: TextStyle(color: Colors.grey)),
+            Text('Mengirim data dan dokumen...', style: TextStyle(color: Colors.grey)),
           ],
         ),
       )
@@ -363,7 +362,6 @@ class _OwnerRegistrationScreenState extends State<OwnerRegistrationScreen> {
         ),
         child: Row(
           children: [
-            // Thumbnail Preview jika foto sudah dipilih
             Container(
               width: 56,
               height: 56,

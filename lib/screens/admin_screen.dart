@@ -1,10 +1,13 @@
 import 'dart:convert'; // 🔹 Ditambahkan untuk decode data Base64
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Ditambahkan untuk mengambil UID user aktif
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../models/kos_model.dart';
 import '../core/app_theme.dart';
 import 'add_edit_kos_screen.dart';
+import 'home_screen.dart'; // 🔹 Import halaman utama kos (seeker)
+import 'auth/profile_screen.dart'; // 🔹 Import halaman profil
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -28,8 +31,38 @@ class _AdminScreenState extends State<AdminScreen> {
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         actions: [
+          // 🔹 1. Button untuk kembali ke Halaman Utama Kos (Seeker)
+          IconButton(
+            icon: const Icon(Icons.home_outlined, color: Colors.black87),
+            tooltip: 'Ke Mode Pencari Kos',
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    (route) => false,
+              );
+            },
+          ),
+
+          // 🔹 2. Button ke Halaman Profile
+          IconButton(
+            icon: const Icon(Icons.person_outline, color: Colors.black87),
+            tooltip: 'Profil Saya',
+            onPressed: () {
+              final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfileScreen(userId: currentUserId),
+                ),
+              );
+            },
+          ),
+
+          // 🔹 3. Button Logout
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+            tooltip: 'Keluar',
             onPressed: () async {
               await AuthService().signOut();
             },

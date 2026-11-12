@@ -76,4 +76,47 @@ class FirestoreService {
   Future<void> deleteKos(String idKos) async {
     await _db.collection('kos').doc(idKos).delete();
   }
+
+  // ==========================================
+  // FITUR WISHLIST / FAVORIT
+  // ==========================================
+
+  // 7. Ambil stream daftar kos yang difavoritkan berdasarkan list ID di dokumen user
+  Stream<List<KosModel>> getFavoriteKos(List<String> favoriteIds) {
+    if (favoriteIds.isEmpty) {
+      return Stream.value([]);
+    }
+
+    // Menggunakan FieldPath.documentId untuk mencocokkan ID dokumen kos
+    return _db
+        .collection('kos')
+        .where(FieldPath.documentId, whereIn: favoriteIds)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+      return KosModel.fromFirestore(
+        doc.data(),
+        doc.id,
+      );
+    }).toList());
+  }
+
+  // 8. Toggle (Tambah / Hapus) Kos dari Wishlist User
+  Future<void> toggleFavorite(String kosId, bool isCurrentlyFavorite) async {
+    final String? currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    final userDocRef = _db.collection('users').doc(currentUserId);
+
+    if (isCurrentlyFavorite) {
+      // Jika sudah favorit, hapus dari array 'favorites'
+      await userDocRef.update({
+        'favorites': FieldValue.arrayRemove([kosId])
+      });
+    } else {
+      // Jika belum, tambahkan ke array 'favorites'
+      await userDocRef.update({
+        'favorites': FieldValue.arrayUnion([kosId])
+      });
+    }
+  }
 }

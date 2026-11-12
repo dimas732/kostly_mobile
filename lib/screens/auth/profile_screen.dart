@@ -1,41 +1,44 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../../models/user_model.dart';
-import '../owner_registration_screen.dart'; // Pastikan path import ini sesuai dengan struktur project kamu
+// Import halaman form pendaftaran owner dan dashboard pemilik kos kamu di sini
+import '../owner_registration_screen.dart';
+import '../admin_screen.dart';
 
-class ProfilScreen extends StatelessWidget {
-  const ProfilScreen({super.key});
+class ProfileScreen extends StatefulWidget {
+  final String userId; // ID User yang sedang login
+
+  const ProfileScreen({super.key, required this.userId});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser == null) {
-      return const Scaffold(
-        body: Center(child: Text('User belum login')),
-      );
-    }
-
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.grey[550], // Sesuai dengan warna latar belakang gambar referensi
       appBar: AppBar(
+        title: const Text(
+          'Profil Saya',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
         backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text('Profil Saya', style: TextStyle(color: Colors.black, fontSize: 16)),
+        elevation: 0.5,
+        iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.black54),
+            icon: const Icon(Icons.settings_outlined, color: Colors.black87),
             onPressed: () {
-              // TODO: Aksi Setting
+              // Aksi ke halaman pengaturan/setting
             },
           ),
         ],
       ),
-      // Menggunakan StreamBuilder agar data profil otomatis ter-update jika ada perubahan di Firestore
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').doc(currentUser.uid).snapshots(),
+        stream: FirebaseFirestore.instance.collection('users').doc(widget.userId).snapshots(),
         builder: (context, snapshot) {
+          // Tampilkan loading jika data user belum siap
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -44,26 +47,30 @@ class ProfilScreen extends StatelessWidget {
             return const Center(child: Text('Data profil tidak ditemukan.'));
           }
 
-          // Ambil data menggunakan UserModel.fromFirestore
-          var userData = snapshot.data!.data() as Map<String, dynamic>;
-          UserModel user = UserModel.fromFirestore(userData, currentUser.uid);
+          var userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+          String name = userData['fullName'] ?? userData['name'] ?? 'Pengguna KostLy';
+          String phone = userData['phoneNumber'] ?? userData['phone'] ?? '-';
+          String email = userData['email'] ?? '-';
+
+          // Ambil status verifikasi (default 'none' jika field belum ada)
+          String verificationStatus = userData['verificationStatus'] ?? 'none';
 
           return SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. HEADER PROFIL (Nama & No HP dari model)
+                // BAGIAN 1: HEADER PROFIL (FOTO & INFO USER)
                 Container(
+                  width: double.infinity,
                   color: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   child: Row(
                     children: [
                       CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Colors.blue[800],
+                        radius: 32,
+                        backgroundColor: const Color(0xFF2B8EFF),
                         child: Text(
-                          user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                          style: const TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
+                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -72,24 +79,24 @@ class ProfilScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user.name.isNotEmpty ? user.name : 'Tanpa Nama',
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              name,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                             ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.phone, size: 14, color: Colors.green),
-                                const SizedBox(width: 4),
-                                Text(
-                                  user.phone_number.isNotEmpty ? user.phone_number : 'Belum ada nomor HP',
-                                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                                ),
+                                const Icon(Icons.phone, size: 14, color: Colors.grey),
+                                const SizedBox(width: 6),
+                                Text(phone, style: const TextStyle(fontSize: 13, color: Colors.grey)),
                               ],
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              user.email,
-                              style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            Row(
+                              children: [
+                                const Icon(Icons.email_outlined, size: 14, color: Colors.grey),
+                                const SizedBox(width: 6),
+                                Text(email, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                              ],
                             ),
                           ],
                         ),
@@ -97,71 +104,97 @@ class ProfilScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
                 const SizedBox(height: 12),
 
-                // 2. KOTAK STATISTIK AKTIVITAS
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5, spreadRadius: 1),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatItem(Icons.bookmark_border, '0', 'Disimpan'),
-                        Container(height: 30, width: 1, color: Colors.grey[300]),
-                        _buildStatItem(Icons.home_work_outlined, '0', 'Kost Disewa'),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // 3. BANNER VERIFIKASI PEMILIK KOS (Terhubung ke OwnerRegistrationScreen)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: _buildVerificationBanner(context, user),
-                ),
-                const SizedBox(height: 20),
-
-                // 4. MENU LAINNYA
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    'Lainnya',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                // BAGIAN 2: STATISTIK / MENU UTAMA (Simpan & Kost Disewa)
                 Container(
-                  color: Colors.white,
-                  child: Column(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // MENU TOMBOL DAFTAR / DASHBOARD PEMILIK KOS
-                      _buildMenuItem(
-                        Icons.storefront,
-                        user.verification_status == 'verified' ? 'Dashboard Pemilik Kos' : 'Daftar Jadi Pemilik Kos',
-                            () {
-                          // Selalu izinkan akses ke form pendaftaran selama masa development
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OwnerRegistrationScreen(userId: user.uid),
-                            ),
-                          );
-                        },
-                      ),
-                      const Divider(height: 1, indent: 56),
-                      _buildMenuItem(Icons.help_outline, 'Pusat Bantuan', () {}),
+                      _buildStatItem(Icons.bookmark_border, '0', 'Disimpan'),
+                      Container(height: 30, width: 1, color: Colors.grey.shade200),
+                      _buildStatItem(Icons.home_outlined, '0', 'Kost Disewa'),
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 12),
+
+                // BAGIAN 3: BANNER 4 STATE VERIFIKASI OWNER (DINAMIS)
+                _buildVerificationBanner(context, verificationStatus),
+
+                const SizedBox(height: 12),
+
+                // BAGIAN 4: MENU LAINNYA
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Lainnya',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Menu Daftar Jadi Pemilik Kos (Hanya muncul jika belum pernah daftar atau status none/rejected)
+                      if (verificationStatus == 'none' || verificationStatus == 'rejected')
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEBF3FE),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.storefront_outlined, color: Color(0xFF2B8EFF)),
+                          ),
+                          title: const Text('Daftar Jadi Pemilik Kos', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                          onTap: () {
+                            // Navigasi ke halaman form pendaftaran owner
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OwnerRegistrationScreen(userId: widget.userId),
+                              ),
+                            );
+                          },
+                        ),
+
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEBF3FE),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.help_outline_rounded, color: Color(0xFF2B8EFF)),
+                        ),
+                        title: const Text('Pusat Bantuan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                        onTap: () {
+                          // Aksi ke pusat bantuan
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
               ],
             ),
           );
@@ -170,82 +203,165 @@ class ProfilScreen extends StatelessWidget {
     );
   }
 
+  // Widget pendukung untuk item statistik
   Widget _buildStatItem(IconData icon, String count, String label) {
     return Column(
       children: [
-        Icon(icon, color: Colors.blue[700], size: 26),
-        const SizedBox(height: 4),
-        Text(count, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Icon(icon, color: const Color(0xFF2B8EFF)),
+        const SizedBox(height: 6),
+        Text(count, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
 
-  Widget _buildVerificationBanner(BuildContext context, UserModel user) {
-    String message = "Ingin menyewakan properti Anda? Daftar jadi Pemilik Kos sekarang!";
-    String buttonText = "LENGKAPI DATA KTP";
-    Color bannerColor = Colors.blue[50]!;
-    Color borderColor = Colors.blue[200]!;
+  // =========================================================================
+  // LOGIKA 4 STATE BANNER VERIFIKASI PEMILIK KOS
+  // =========================================================================
+  Widget _buildVerificationBanner(BuildContext context, String status) {
 
-    if (user.verification_status == 'pending') {
-      message = "Dokumen verifikasi Anda sedang ditinjau oleh Admin.";
-      buttonText = "MENUNGGU REVIEW (BISA DIKLIK)";
-    } else if (user.verification_status == 'verified') {
-      message = "Akun Anda telah terverifikasi sebagai Pemilik Kos resmi.";
-      buttonText = "KELOLA KOS";
+    // STATE 1: Belum pernah mengisi form (Banner tidak dimunculkan)
+    if (status == 'none') {
+      return const SizedBox.shrink();
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bannerColor,
-        border: Border.all(color: borderColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.verified_user, color: Colors.blue, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: Colors.black87),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              // Tombol tidak lagi dibatasi/didisable (tidak lagi bernilai null saat pending)
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => OwnerRegistrationScreen(userId: user.uid),
-                  ),
-                );
-              },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.blue),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text(
-                buttonText,
-                style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+    // STATE 2: Sedang ditinjau oleh Admin (PENDING)
+    if (status == 'pending') {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEBF3FE),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF2B8EFF).withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.verified_user_outlined, color: Color(0xFF2B8EFF), size: 28),
+            const SizedBox(height: 8),
+            const Text(
+              'Dokumen verifikasi Anda sedang ditinjau oleh Admin.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Pengajuan Anda sedang diproses oleh admin.')),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF2B8EFF)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text(
+                  'MENUNGGU REVIEW (BISA DIKLIK)',
+                  style: TextStyle(color: Color(0xFF2B8EFF), fontWeight: FontWeight.bold, fontSize: 13),
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
+    }
 
-  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.black54),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-      onTap: onTap,
-    );
+    // STATE 3: Akun sudah di-APPROVE (Disetujui)
+    if (status == 'verified') {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.green.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.green, size: 28),
+            const SizedBox(height: 8),
+            const Text(
+              'Selamat! Akun Anda sudah diverifikasi sebagai Pemilik Kos.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () {
+                  // 🔹 Navigasi ke Halaman Dashboard Utama Pemilik Kos (AdminScreen)
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdminScreen()),
+                        (route) => false,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'MASUK DASHBOARD PEMILIK KOS',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // STATE 4: Akun DITOLAK (REJECTED)
+    if (status == 'rejected') {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.red.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 28),
+            const SizedBox(height: 8),
+            const Text(
+              'Maaf, pengajuan verifikasi Anda ditolak. Silakan ajukan ulang dengan data yang valid.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () {
+                  // TODO: Arahkan kembali ke Form Pendaftaran Owner untuk daftar ulang
+                  // Navigator.push(context, MaterialPageRoute(builder: (_) => OwnerRegistrationScreen(userId: widget.userId)));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'AJUKAN ULANG PENDAFTARAN',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }

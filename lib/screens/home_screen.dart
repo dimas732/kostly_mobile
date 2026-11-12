@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Ditambahkan untuk mengambil UID user aktif
 
 import '../core/app_theme.dart';
 import '../models/kos_model.dart';
@@ -8,7 +9,8 @@ import '../services/firestore_service.dart';
 import '../widgets/kos_card.dart';
 import 'details_kos_screen.dart';
 import 'auth/auth_gate.dart';
-import 'auth/profil.dart'; // Menggunakan profil.dart sesuai struktur project kamu
+import 'auth/profile_screen.dart';
+import './wishlist_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -59,11 +61,30 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Membuka halaman Profil
-  Future<void> _openProfile() async {
+  // Membuka halaman wishlist
+  Future<void> _openWishlist() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const ProfilScreen()),
+      MaterialPageRoute(builder: (context) => const WishlistScreen()),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _selectedBottomNav = 0;
+      _currentPos = 0.0;
+    });
+  }
+
+  // Membuka halaman Profil dengan mengambil UID user yang sedang login saat ini
+  Future<void> _openProfile() async {
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileScreen(userId: currentUserId),
+      ),
     );
 
     if (!mounted) return;
@@ -76,21 +97,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Ambil ID user aktif untuk dikirim ke ProfileScreen pada IndexedStack
+    final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     // Daftar halaman utama berdasarkan urutan ikon BottomNavigationBar:
-    // 0: Home (Katalog Kos)
-    // 1: Tab Cari
-    // 2: Tab Favorit
-    // 3: Tab Profil
     final List<Widget> pages = [
-      _buildHomeContent(), // Tampilan utama katalog kos
+      _buildHomeContent(),
       const Center(child: Text('Halaman Cari / Explore', style: TextStyle(fontSize: 16, color: Colors.grey))),
-      const Center(child: Text('Halaman Favorit Saya', style: TextStyle(fontSize: 16, color: Colors.grey))),
-      const ProfilScreen(),
+      const WishlistScreen(),
+      ProfileScreen(userId: currentUserId),
     ];
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      // Menggunakan IndexedStack agar status/state tiap halaman tetap terjaga saat berpindah tab
       body: IndexedStack(
         index: _selectedBottomNav,
         children: pages,
@@ -137,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     final double itemWidth = constraints.maxWidth / items.length;
 
-                    // Menghitung posisi bubble berdasarkan koordinat jari
+                    // Menghitung posisi bubble berdasarkan koordinat jari (Diperbaiki dari error potongan teks)
                     void updatePositionFromOffset(Offset localPosition) {
                       double pos = (localPosition.dx - (itemWidth / 2)) / itemWidth;
                       pos = pos.clamp(0.0, (items.length - 1).toDouble());
@@ -153,7 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       setState(() {
                         _currentPos = nearestIndex.toDouble();
-                        _selectedBottomNav = nearestIndex; // Mengubah halaman aktif
+                        _selectedBottomNav = nearestIndex;
                         _isDragging = false;
                       });
 
@@ -186,13 +205,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Stack(
                         alignment: Alignment.centerLeft,
                         children: [
-                          // 1. Bubble kaca
+                          // 1. Bubble kaca (Diperbaiki dari kesalahan pengetikan operator minus)
                           AnimatedPositioned(
                             duration: _isDragging
                                 ? Duration.zero
                                 : const Duration(milliseconds: 300),
                             curve: Curves.easeOutCubic,
-                            left: _currentPos * itemWidth + 4,
+                            left: (_currentPos * itemWidth) + 4,
                             top: 4,
                             bottom: 4,
                             width: itemWidth - 8,
@@ -208,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
 
-                          // 2. Ikon dan teks navigasi
+                          // 2. Ikon dan teks navigasi (Diperbaiki dari kesalahan kalkulasi jarak aktif)
                           Row(
                             children: List.generate(items.length, (index) {
                               final double distance = (_currentPos - index).abs();
