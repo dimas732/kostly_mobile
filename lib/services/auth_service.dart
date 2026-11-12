@@ -19,6 +19,7 @@ class AuthService {
     required String password,
     required String phoneNumber,
     required String role, // 'seeker' atau 'owner'
+    required String verificationStatus
   }) async {
     try {
       // Buat akun baru di Firebase Auth
@@ -36,6 +37,7 @@ class AuthService {
         email: email,
         roles: role,
         phone_number: phoneNumber,
+        verification_status: verificationStatus
       );
 
       // Simpan data profil ke koleksi 'users' di Firestore menggunakan UID

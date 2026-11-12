@@ -48,12 +48,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
+    // Tentukan status verifikasi awal berdasarkan role:
+    // Jika role-nya 'owner', status awalnya 'none' (belum verifikasi KTP).
+    // Jika 'seeker', bisa langsung 'none' atau diabaikan.
+    String initialVerificationStatus = (_selectedRole == 'owner') ? 'none' : 'none';
+
     String? errorMessage = await _authService.signUp(
       name: _emailController.text.split('@').first,
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
       role: _selectedRole,
+      // Kirimkan verificationStatus agar ikut tersimpan ke dokumen users di Firestore
+      verificationStatus: initialVerificationStatus,
     );
 
     if (!mounted) return;

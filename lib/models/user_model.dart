@@ -4,6 +4,7 @@ class UserModel {
   final String email;
   final String phone_number;
   final String roles;
+  final String verification_status;
 
   UserModel({
     required this.uid,
@@ -11,6 +12,7 @@ class UserModel {
     required this.email,
     required this.phone_number,
     required this.roles,
+    required this.verification_status
   });
 
   factory UserModel.fromFirestore(Map<String, dynamic> json, String documentId) {
@@ -20,6 +22,7 @@ class UserModel {
       email : json['email'] ?? '',
       phone_number: json['phone_number'] ?? '',
       roles: json['roles'] ?? 'seeker',
+      verification_status: json['verification_status'] ?? 'pending'
 
     );
   }
@@ -29,7 +32,8 @@ class UserModel {
       'name' : name,
       'email' : email,
       'phone_number' : phone_number,
-      'roles' : roles
+      'roles' : roles,
+      'verification_status' : verification_status
     };
   }
 }

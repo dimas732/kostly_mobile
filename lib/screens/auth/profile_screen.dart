@@ -1,574 +1,251 @@
-
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
-import '../../core/app_theme.dart';
+import '../owner_registration_screen.dart'; // Pastikan path import ini sesuai dengan struktur project kamu
 
-class ProfilScreen extends StatefulWidget {
+class ProfilScreen extends StatelessWidget {
   const ProfilScreen({super.key});
 
   @override
-  State<ProfilScreen> createState() => _ProfilScreenState();
-}
+  Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
 
-class _ProfilScreenState extends State<ProfilScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final AuthService _authService = AuthService();
-
-  // Controller untuk setiap field profil
-  final TextEditingController _nameController =
-  TextEditingController();
-
-  final TextEditingController _emailController =
-  TextEditingController();
-
-  final TextEditingController _phoneController =
-  TextEditingController();
-
-  late Future<UserModel> _profileFuture;
-
-  bool _isEditing = false;
-  bool _isSaving = false;
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _profileFuture = _getProfile();
-  }
-
-  // Mengambil data pengguna berdasarkan UID
-  Future<UserModel> _getProfile() async {
-    final user = _auth.currentUser;
-
-    if (user == null) {
-      throw Exception('Pengguna belum login.');
+    if (currentUser == null) {
+      return const Scaffold(
+        body: Center(child: Text('User belum login')),
+      );
     }
 
-    final document = await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .get();
-
-    if (!document.exists || document.data() == null) {
-      throw Exception('Data profil tidak ditemukan.');
-    }
-
-    return UserModel.fromFirestore(
-      document.data()!,
-      document.id,
-    );
-  }
-
-  // Mengisi controller dengan data Firestore
-  void _initializeForm(UserModel user) {
-    if (_isInitialized) return;
-
-    _nameController.text = user.name;
-    _emailController.text = user.email;
-    _phoneController.text = user.phone_number;
-
-    _isInitialized = true;
-  }
-
-  // Mengaktifkan mode edit
-  void _editProfile() {
-    setState(() {
-      _isEditing = true;
-    });
-  }
-
-  // Membatalkan perubahan
-  void _cancelEdit(UserModel user) {
-    _nameController.text = user.name;
-    _emailController.text = user.email;
-    _phoneController.text = user.phone_number;
-
-    setState(() {
-      _isEditing = false;
-    });
-  }
-
-  // Menyimpan perubahan profil
-  Future<void> _saveProfile() async {
-    final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
-
-    // Validasi field kosong
-    if (name.isEmpty || email.isEmpty || phone.isEmpty) {
-      _showMessage('Semua field harus diisi.');
-      return;
-    }
-
-    // Validasi format email
-    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
-    if (!emailRegex.hasMatch(email)) {
-      _showMessage('Format email tidak valid.');
-      return;
-    }
-
-    final user = _auth.currentUser;
-
-    if (user == null) {
-      _showMessage('Pengguna belum login.');
-      return;
-    }
-
-    setState(() {
-      _isSaving = true;
-    });
-
-    try {
-      // Perbarui email Firebase Authentication jika berubah
-      if (email != user.email) {
-        await user.updateEmail(email);
-      }
-
-      // Perbarui data pengguna di Firestore
-      await _firestore.collection('users').doc(user.uid).update({
-        'name': name,
-        'email': email,
-        'phone_number': phone,
-      });
-
-      if (!mounted) return;
-
-      setState(() {
-        _profileFuture = _getProfile();
-        _isEditing = false;
-        _isInitialized = false;
-      });
-
-      _showMessage('Profil berhasil diperbarui.');
-    } on FirebaseAuthException catch (e) {
-      String message;
-
-      if (e.code == 'requires-recent-login') {
-        message =
-        'Silakan login ulang sebelum mengganti email.';
-      } else if (e.code == 'email-already-in-use') {
-        message = 'Email sudah digunakan akun lain.';
-      } else if (e.code == 'invalid-email') {
-        message = 'Format email tidak valid.';
-      } else {
-        message = e.message ?? 'Gagal memperbarui email.';
-      }
-
-      _showMessage(message);
-    } catch (e) {
-      _showMessage('Gagal memperbarui profil: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
-    }
-  }
-
-  // Logout
-  Future<void> _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Keluar'),
-        content: const Text(
-          'Apakah kamu yakin ingin keluar dari akun KostLy?',
-        ),
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Profil Saya', style: TextStyle(color: Colors.black, fontSize: 16)),
         actions: [
-          TextButton(
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.black54),
             onPressed: () {
-              Navigator.pop(dialogContext, false);
+              // TODO: Aksi Setting
             },
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(dialogContext, true);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Keluar'),
           ),
         ],
       ),
-    );
+      // Menggunakan StreamBuilder agar data profil otomatis ter-update jika ada perubahan di Firestore
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('users').doc(currentUser.uid).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-    if (confirm == true) {
-      await _authService.signOut();
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('Data profil tidak ditemukan.'));
+          }
 
-      if (!mounted) return;
+          // Ambil data menggunakan UserModel.fromFirestore
+          var userData = snapshot.data!.data() as Map<String, dynamic>;
+          UserModel user = UserModel.fromFirestore(userData, currentUser.uid);
 
-      // Kembali ke halaman utama agar AuthGate
-      // dapat menampilkan LoginScreen
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    }
-  }
-
-  // Menampilkan pesan
-  void _showMessage(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: FutureBuilder<UserModel>(
-          future: _profileFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            }
-
-            if (snapshot.hasError || !snapshot.hasData) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.redAccent,
-                      size: 40,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('Gagal memuat data profil.'),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _profileFuture = _getProfile();
-                          _isInitialized = false;
-                        });
-                      },
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final user = snapshot.data!;
-
-            _initializeForm(user);
-
-            return Column(
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // HEADER
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
+                // 1. HEADER PROFIL (Nama & No HP dari model)
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
                   child: Row(
                     children: [
-                      _circleButton(
-                        icon: Icons.arrow_back,
-                        onPressed: () {
-                          if (_isEditing) {
-                            _cancelEdit(user);
-                          }
-
-                          Navigator.pop(context);
-                        },
-                      ),
-                      const Expanded(
-                        child: Center(
-                          child: Text(
-                            'Profil',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black,
-                            ),
-                          ),
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: Colors.blue[800],
+                        child: Text(
+                          user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                          style: const TextStyle(fontSize: 24, color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      const SizedBox(width: 44),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user.name.isNotEmpty ? user.name : 'Tanpa Nama',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.phone, size: 14, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text(
+                                  user.phone_number.isNotEmpty ? user.phone_number : 'Belum ada nomor HP',
+                                  style: const TextStyle(color: Colors.grey, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              user.email,
+                              style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
 
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
+                // 2. KOTAK STATISTIK AKTIVITAS
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5, spreadRadius: 1),
+                      ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        const SizedBox(height: 28),
-
-                        // FOTO PROFIL
-                        Center(
-                          child: Column(
-                            children: [
-                              Stack(
-                                children: [
-                                  Container(
-                                    width: 126,
-                                    height: 126,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.grey.shade200,
-                                      border: Border.all(
-                                        color: Colors.grey.shade300,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.person,
-                                      size: 75,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: 0,
-                                    bottom: 4,
-                                    child: Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: const BoxDecoration(
-                                        color: AppTheme.primaryBlue,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.edit,
-                                        color: Colors.white,
-                                        size: 19,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                'Foto profil',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 42),
-
-                        // NAMA LENGKAP
-                        _buildLabel('Nama Lengkap'),
-                        _buildTextField(
-                          controller: _nameController,
-                          enabled: _isEditing,
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        // EMAIL
-                        _buildLabel('Email'),
-                        _buildTextField(
-                          controller: _emailController,
-                          enabled: _isEditing,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-
-                        const SizedBox(height: 22),
-
-                        // NOMOR TELEPON
-                        _buildLabel('No Telepon'),
-                        _buildTextField(
-                          controller: _phoneController,
-                          enabled: _isEditing,
-                          keyboardType: TextInputType.phone,
-                        ),
-
-                        const SizedBox(height: 42),
-
-                        // TOMBOL EDIT / SIMPAN
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: OutlinedButton(
-                            onPressed: _isSaving
-                                ? null
-                                : _isEditing
-                                ? _saveProfile
-                                : _editProfile,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.black,
-                              side: const BorderSide(
-                                color: AppTheme.primaryBlue,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: _isSaving
-                                ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
-                                : Text(
-                              _isEditing ? 'Simpan' : 'Edit',
-                              style: const TextStyle(
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // TOMBOL BATAL
-                        if (_isEditing) ...[
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 44,
-                            child: TextButton(
-                              onPressed: _isSaving
-                                  ? null
-                                  : () => _cancelEdit(user),
-                              child: const Text('Batal'),
-                            ),
-                          ),
-                        ],
-
-                        const SizedBox(height: 28),
-
-                        // TOMBOL KELUAR
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: _isSaving ? null : _logout,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryBlue,
-                              foregroundColor: Colors.white,
-                              elevation: 3,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: const Text(
-                              'Keluar',
-                              style: TextStyle(fontSize: 18),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
+                        _buildStatItem(Icons.bookmark_border, '0', 'Disimpan'),
+                        Container(height: 30, width: 1, color: Colors.grey[300]),
+                        _buildStatItem(Icons.home_work_outlined, '0', 'Kost Disewa'),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // 3. BANNER VERIFIKASI PEMILIK KOS (Terhubung ke OwnerRegistrationScreen)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: _buildVerificationBanner(context, user),
+                ),
+                const SizedBox(height: 20),
+
+                // 4. MENU LAINNYA
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Lainnya',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  color: Colors.white,
+                  child: Column(
+                    children: [
+                      // MENU TOMBOL DAFTAR / DASHBOARD PEMILIK KOS
+                      _buildMenuItem(
+                        Icons.storefront,
+                        user.verification_status == 'verified' ? 'Dashboard Pemilik Kos' : 'Daftar Jadi Pemilik Kos',
+                            () {
+                          // Selalu izinkan akses ke form pendaftaran selama masa development
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OwnerRegistrationScreen(userId: user.uid),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1, indent: 56),
+                      _buildMenuItem(Icons.help_outline, 'Pusat Bantuan', () {}),
+                    ],
+                  ),
+                ),
               ],
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  // Label input
-  Widget _buildLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 13,
-          color: Colors.black,
-        ),
-      ),
+  Widget _buildStatItem(IconData icon, String count, String label) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.blue[700], size: 26),
+        const SizedBox(height: 4),
+        Text(count, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
     );
   }
 
-  // Field profil
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required bool enabled,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return TextFormField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: keyboardType,
-      style: TextStyle(
-        fontSize: 15,
-        color: enabled ? Colors.black : Colors.white,
+  Widget _buildVerificationBanner(BuildContext context, UserModel user) {
+    String message = "Ingin menyewakan properti Anda? Daftar jadi Pemilik Kos sekarang!";
+    String buttonText = "LENGKAPI DATA KTP";
+    Color bannerColor = Colors.blue[50]!;
+    Color borderColor = Colors.blue[200]!;
+
+    if (user.verification_status == 'pending') {
+      message = "Dokumen verifikasi Anda sedang ditinjau oleh Admin.";
+      buttonText = "MENUNGGU REVIEW (BISA DIKLIK)";
+    } else if (user.verification_status == 'verified') {
+      message = "Akun Anda telah terverifikasi sebagai Pemilik Kos resmi.";
+      buttonText = "KELOLA KOS";
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bannerColor,
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(12),
       ),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: enabled
-            ? Colors.white
-            : AppTheme.primaryBlue,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: AppTheme.primaryBlue,
+      child: Column(
+        children: [
+          const Icon(Icons.verified_user, color: Colors.blue, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Colors.black87),
           ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: AppTheme.primaryBlue,
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              // Tombol tidak lagi dibatasi/didisable (tidak lagi bernilai null saat pending)
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OwnerRegistrationScreen(userId: user.uid),
+                  ),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.blue),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                buttonText,
+                style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+        ],
       ),
     );
   }
 
-  // Tombol bulat pada header
-  Widget _circleButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: 44,
-      height: 44,
-      child: IconButton(
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          backgroundColor: AppTheme.primaryBlue,
-          foregroundColor: Colors.white,
-        ),
-        icon: Icon(icon),
-      ),
+  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.black54),
+      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+      onTap: onTap,
     );
   }
 }
