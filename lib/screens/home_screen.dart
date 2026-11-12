@@ -9,6 +9,7 @@ import '../widgets/kos_card.dart';
 import 'details_kos_screen.dart';
 import 'auth/auth_gate.dart';
 import 'auth/profil.dart'; // Menggunakan profil.dart sesuai struktur project kamu
+import 'wishlist_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
