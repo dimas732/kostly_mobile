@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'electricity_pricing.dart';
+
 class KosModel {
   final String id;
   final String userId;
@@ -13,6 +15,11 @@ class KosModel {
   final Map<String, int> reccuringCost; // 🔹 Diperketat tipenya
   final Map<String, int> electricalCost; // 🔹 Diperketat tipenya
   final DateTime? createdAt;
+  final ElectricityPricing? electricityPricing;
+
+  ElectricityPricing get electricity =>
+      electricityPricing ??
+      ElectricityPricing(fixedMonthly: electricalCost['listrik'] ?? 0);
 
   KosModel({
     required this.id,
@@ -27,6 +34,7 @@ class KosModel {
     required this.reccuringCost,
     required this.electricalCost,
     this.createdAt,
+    this.electricityPricing,
   });
 
   String get image => images.isNotEmpty ? images.first : '';
@@ -65,6 +73,11 @@ class KosModel {
       images: parseImages(json['images'] ?? json['image']),
       reccuringCost: parseMap(json['reccuring_cost']),
       electricalCost: parseMap(json['electrical_cost']),
+      electricityPricing: json['electricity_pricing'] is Map
+          ? ElectricityPricing.fromMap(
+              Map<String, dynamic>.from(json['electricity_pricing']),
+            )
+          : null,
       createdAt: json['created_at'] != null
           ? (json['created_at'] as Timestamp).toDate()
           : null,
@@ -83,6 +96,7 @@ class KosModel {
       'images': images,
       'reccuring_cost': reccuringCost,
       'electrical_cost': electricalCost,
+      'electricity_pricing': electricity.toMap(),
       'created_at': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),

@@ -1,22 +1,37 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/kos_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  Future<String?> getOwnerPhoneNumber(String ownerId) async {
+    if (ownerId.trim().isEmpty) return null;
+    final snapshot = await _db.collection('users').doc(ownerId).get();
+    final data = snapshot.data();
+    if (data == null) return null;
+    for (final key in ['phone_number', 'phoneNumber', 'phone']) {
+      final phone = data[key]?.toString().trim();
+      if (phone != null && phone.isNotEmpty) return phone;
+    }
+    return null;
+  }
+
   // 1. Ambil SELURUH daftar kos (Digunakan untuk Halaman Utama Pencari / HomeScreen)
   Stream<List<KosModel>> getDaftarKos() {
     return _db
         .collection('kos')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-      return KosModel.fromFirestore(
-        doc.data() as Map<String, dynamic>,
-        doc.id,
-      );
-    }).toList());
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            return KosModel.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            );
+          }).toList(),
+        );
   }
 
   // 2. Ambil daftar kos KHUSUS milik owner yang sedang login (Digunakan untuk AdminScreen)
@@ -31,12 +46,14 @@ class FirestoreService {
         .collection('kos')
         .where('user_id', isEqualTo: currentUserId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-      return KosModel.fromFirestore(
-        doc.data() as Map<String, dynamic>,
-        doc.id,
-      );
-    }).toList());
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            return KosModel.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            );
+          }).toList(),
+        );
   }
 
   // 3. Cari daftar kos berdasarkan nama atau lokasi (Digunakan untuk Fitur Search di HomeScreen)
@@ -67,7 +84,8 @@ class FirestoreService {
     if (currentUserId == null) return;
 
     Map<String, dynamic> dataKos = kos.toFirestore();
-    dataKos['user_id'] = currentUserId; // Pastikan user_id tetap terikat pada owner aktif
+    dataKos['user_id'] =
+        currentUserId; // Pastikan user_id tetap terikat pada owner aktif
 
     await _db.collection('kos').doc(kos.id).update(dataKos);
   }
@@ -92,12 +110,11 @@ class FirestoreService {
         .collection('kos')
         .where(FieldPath.documentId, whereIn: favoriteIds)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-      return KosModel.fromFirestore(
-        doc.data(),
-        doc.id,
-      );
-    }).toList());
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            return KosModel.fromFirestore(doc.data(), doc.id);
+          }).toList(),
+        );
   }
 
   // 8. Toggle (Tambah / Hapus) Kos dari Wishlist User
@@ -110,12 +127,12 @@ class FirestoreService {
     if (isCurrentlyFavorite) {
       // Jika sudah favorit, hapus dari array 'favorites'
       await userDocRef.update({
-        'favorites': FieldValue.arrayRemove([kosId])
+        'favorites': FieldValue.arrayRemove([kosId]),
       });
     } else {
       // Jika belum, tambahkan ke array 'favorites'
       await userDocRef.update({
-        'favorites': FieldValue.arrayUnion([kosId])
+        'favorites': FieldValue.arrayUnion([kosId]),
       });
     }
   }

@@ -1,8 +1,13 @@
 import 'dart:convert'; // 🔹 Wajib untuk decode Base64
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_theme.dart';
 import '../models/kos_model.dart';
+import '../services/firestore_service.dart';
+import '../services/whatsapp_service.dart';
+import '../widgets/calculator_widgets.dart';
 
 class DetailScreen extends StatefulWidget {
   final KosModel kost;
@@ -14,13 +19,54 @@ class DetailScreen extends StatefulWidget {
 }
 
 class _DetailScreenState extends State<DetailScreen> {
-  int _currentImageIndex = 0; // 🔹 Menyimpan indeks foto yang sedang aktif di slider
+  bool _isContacting = false;
+
+  Future<void> _contactOwner() async {
+    if (_isContacting) return;
+    setState(() => _isContacting = true);
+    try {
+      final phone = await FirestoreService().getOwnerPhoneNumber(
+        widget.kost.userId,
+      );
+      if (!mounted) return;
+      final uri = WhatsAppService.chatUri(phone ?? '', widget.kost.name);
+      if (uri == null) {
+        _showContactMessage(
+          'Nomor WhatsApp pemilik belum tersedia atau tidak valid.',
+        );
+        return;
+      }
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!mounted) return;
+      if (!opened) {
+        _showContactMessage(
+          'Tidak dapat membuka WhatsApp. Silakan coba kembali.',
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        _showContactMessage(
+          'Gagal menghubungi pemilik. Periksa koneksi dan coba kembali.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isContacting = false);
+    }
+  }
+
+  void _showContactMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  int _currentImageIndex =
+      0; // 🔹 Menyimpan indeks foto yang sedang aktif di slider
 
   // Helper format angka ke Rupiah, contoh: 1500000 -> Rp 1.500.000
   String _formatRupiah(num amount) {
     final formatted = amount.round().toString().replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+$)'),
-          (Match m) => '${m[1]}.',
+      (Match m) => '${m[1]}.',
     );
     return 'Rp $formatted';
   }
@@ -37,9 +83,7 @@ class _DetailScreenState extends State<DetailScreen> {
             pinned: true,
             backgroundColor: Colors.white,
             foregroundColor: Colors.black87,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildImageSlider(),
-            ),
+            flexibleSpace: FlexibleSpaceBar(background: _buildImageSlider()),
           ),
 
           SliverToBoxAdapter(
@@ -64,7 +108,10 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                       const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryBlue.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(20),
@@ -87,12 +134,20 @@ class _DetailScreenState extends State<DetailScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 18, color: Colors.grey),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           widget.kost.address,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.3),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                            height: 1.3,
+                          ),
                         ),
                       ),
                     ],
@@ -129,6 +184,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
                   const SizedBox(height: 24),
 
+                  KosCostCalculator(kost: widget.kost),
+                  const SizedBox(height: 24),
+
                   // Deskripsi
                   const Text(
                     'Deskripsi',
@@ -140,8 +198,14 @@ class _DetailScreenState extends State<DetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    widget.kost.description.isEmpty ? 'Belum ada deskripsi.' : widget.kost.description,
-                    style: const TextStyle(fontSize: 14, color: Colors.black54, height: 1.5),
+                    widget.kost.description.isEmpty
+                        ? 'Belum ada deskripsi.'
+                        : widget.kost.description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                      height: 1.5,
+                    ),
                   ),
 
                   const SizedBox(height: 32),
@@ -159,11 +223,7 @@ class _DetailScreenState extends State<DetailScreen> {
           child: SizedBox(
             height: 52,
             child: ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Hubungi pemilik ${widget.kost.name}')),
-                );
-              },
+              onPressed: _isContacting ? null : _contactOwner,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 elevation: 0,
@@ -171,9 +231,9 @@ class _DetailScreenState extends State<DetailScreen> {
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
-              child: const Text(
-                'Hubungi Pemilik',
-                style: TextStyle(
+              child: Text(
+                _isContacting ? 'Membuka WhatsApp...' : 'Hubungi Pemilik',
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
@@ -245,7 +305,9 @@ class _DetailScreenState extends State<DetailScreen> {
     if (imagePath.isEmpty) {
       return Container(
         color: Colors.grey[300],
-        child: const Center(child: Icon(Icons.home_work_outlined, size: 56, color: Colors.grey)),
+        child: const Center(
+          child: Icon(Icons.home_work_outlined, size: 56, color: Colors.grey),
+        ),
       );
     }
 
@@ -257,11 +319,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
       // Coba decode sebagai Base64
       final bytes = base64Decode(base64Str);
-      return Image.memory(
-        bytes,
-        fit: BoxFit.cover,
-        width: double.infinity,
-      );
+      return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity);
     } catch (e) {
       // Jika gagal decode Base64, anggap sebagai URL internet biasa
       return Image.network(
@@ -270,7 +328,9 @@ class _DetailScreenState extends State<DetailScreen> {
         width: double.infinity,
         errorBuilder: (context, error, stackTrace) => Container(
           color: Colors.grey[300],
-          child: const Center(child: Icon(Icons.broken_image, size: 48, color: Colors.grey)),
+          child: const Center(
+            child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+          ),
         ),
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
