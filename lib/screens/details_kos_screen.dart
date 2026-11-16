@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/app_theme.dart';
 import '../models/kos_model.dart';
+import 'electricity_calculator_screen.dart'; // Pastikan path file kalkulator sudah benar
 
 class DetailScreen extends StatefulWidget {
   final KosModel kost;
@@ -152,34 +153,75 @@ class _DetailScreenState extends State<DetailScreen> {
         ],
       ),
 
-      // Tombol aksi di bawah
+      // Tombol aksi di bagian bawah
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Hubungi pemilik ${widget.kost.name}')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 🔹 Tombol Utama: Hubungi Pemilik
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Hubungi pemilik ${widget.kost.name}')),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlue,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    'Hubungi Pemilik',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
-              child: const Text(
-                'Hubungi Pemilik',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+
+              const SizedBox(height: 10),
+
+              // 🔹 Tombol Kedua: Kalkulator Biaya Listrik
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ElectricityCalculatorScreen(),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    side: BorderSide(color: AppTheme.primaryBlue, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  icon: Icon(Icons.flash_on_rounded, color: AppTheme.primaryBlue, size: 20),
+                  label: Text(
+                    'Kalkulator Biaya Listrik',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryBlue,
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -240,7 +282,6 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   // 🔹 Helper untuk Menampilkan Gambar (Mendukung Base64 Lokal & URL Network)
-  // 🔹 Helper untuk Menampilkan Gambar (Lebih Fleksibel untuk Base64 & Network)
   Widget _renderSingleImage(String imagePath) {
     if (imagePath.isEmpty) {
       return Container(
