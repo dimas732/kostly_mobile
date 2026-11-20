@@ -11,6 +11,7 @@ import 'details_kos_screen.dart';
 import 'auth/auth_gate.dart';
 import 'auth/profile_screen.dart';
 import './wishlist_screen.dart';
+import 'search_filter_screen.dart'; // 🔹 Halaman pencarian & filter baru
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,12 +23,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
 
-  // 🔍 Controller & Variabel untuk Search
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  // 🔍 Filter pencarian (nama, lokasi, tipe kos, harga)
+  KosFilter _filter = const KosFilter();
 
   int _selectedBottomNav = 0;
-  String _selectedCategory = 'Semua';
 
   // Dragging bubble
   double _currentPos = 0.0;
@@ -35,11 +34,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<String> _categories = ['Semua', 'Putra', 'Putri', 'Campur'];
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  // True jika ada pencarian / filter yang sedang aktif
+  bool get _hasActiveFilter =>
+      _filter.query.trim().isNotEmpty ||
+          _filter.location.trim().isNotEmpty ||
+          _filter.type != 'Semua' ||
+          !_filter.isPriceDefault;
 
   void _openDetail(KosModel kost) {
     Navigator.push(
@@ -59,6 +59,24 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (context) => const AuthGate()),
           (route) => false,
     );
+  }
+
+  // 🔹 Membuka halaman pencarian & filter
+  Future<void> _openSearch() async {
+    final result = await Navigator.push<KosFilter>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SearchFilterScreen(initial: _filter),
+      ),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      if (result != null) _filter = result;
+      _selectedBottomNav = 0;
+      _currentPos = 0.0;
+    });
   }
 
   // Membuka halaman wishlist
@@ -156,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     final double itemWidth = constraints.maxWidth / items.length;
 
-                    // Menghitung posisi bubble berdasarkan koordinat jari (Diperbaiki dari error potongan teks)
+                    // Menghitung posisi bubble berdasarkan koordinat jari
                     void updatePositionFromOffset(Offset localPosition) {
                       double pos = (localPosition.dx - (itemWidth / 2)) / itemWidth;
                       pos = pos.clamp(0.0, (items.length - 1).toDouble());
@@ -176,7 +194,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         _isDragging = false;
                       });
 
-                      // Jika menu Profil dipilih
+                      // Menu Cari -> buka halaman pencarian & filter
+                      if (nearestIndex == 1) {
+                        _openSearch();
+                      }
+
+                      // Menu Profil
                       if (nearestIndex == 3) {
                         _openProfile();
                       }
@@ -205,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Stack(
                         alignment: Alignment.centerLeft,
                         children: [
-                          // 1. Bubble kaca (Diperbaiki dari kesalahan pengetikan operator minus)
+                          // 1. Bubble kaca
                           AnimatedPositioned(
                             duration: _isDragging
                                 ? Duration.zero
@@ -227,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
 
-                          // 2. Ikon dan teks navigasi (Diperbaiki dari kesalahan kalkulasi jarak aktif)
+                          // 2. Ikon dan teks navigasi
                           Row(
                             children: List.generate(items.length, (index) {
                               final double distance = (_currentPos - index).abs();
@@ -325,38 +348,47 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // 2. Search Bar
+          // 2. Search Bar (ketuk untuk membuka halaman pencarian & filter)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'Cari kos atau lokasi...',
-                  hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
-                    onPressed: () {
-                      setState(() {
-                        _searchController.clear();
-                        _searchQuery = '';
-                      });
-                    },
-                  )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            child: InkWell(
+              onTap: _openSearch,
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search, color: Colors.grey),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _hasActiveFilter
+                            ? _filter.label
+                            : 'Cari kos atau lokasi...',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _hasActiveFilter ? Colors.black87 : Colors.grey,
+                        ),
+                      ),
+                    ),
+                    if (_hasActiveFilter)
+                      GestureDetector(
+                        onTap: () => setState(() => _filter = const KosFilter()),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.clear, size: 18, color: Colors.grey),
+                        ),
+                      )
+                    else
+                      const Icon(Icons.tune_rounded, size: 20, color: Colors.grey),
+                  ],
                 ),
               ),
             ),
@@ -364,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 16),
 
-          // 3. Category Filter Chips
+          // 3. Category Filter Chips (terhubung dengan filter tipe kos)
           SizedBox(
             height: 38,
             child: ListView.builder(
@@ -373,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: _categories.length,
               itemBuilder: (context, index) {
                 final category = _categories[index];
-                final isSelected = _selectedCategory == category;
+                final isSelected = _filter.type == category;
 
                 return Padding(
                   padding: const EdgeInsets.only(right: 10),
@@ -394,7 +426,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     showCheckmark: false,
                     onSelected: (bool selected) {
                       setState(() {
-                        _selectedCategory = category;
+                        _filter = KosFilter(
+                          query: _filter.query,
+                          location: _filter.location,
+                          type: category,
+                          price: _filter.price,
+                        );
                       });
                     },
                   ),
@@ -405,12 +442,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 16),
 
-          // 4. Katalog Kos (Grid Firestore + Search Integration)
+          // 4. Katalog Kos (Grid Firestore + filter nama, lokasi, tipe, harga)
           Expanded(
             child: StreamBuilder<List<KosModel>>(
-              stream: _searchQuery.isNotEmpty
-                  ? _firestoreService.searchDaftarKos(_searchQuery)
-                  : _firestoreService.getDaftarKos(),
+              stream: _firestoreService.getDaftarKos(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -420,13 +455,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
                 }
 
-                List<KosModel> daftarKos = snapshot.data ?? [];
-
-                if (_selectedCategory != 'Semua') {
-                  daftarKos = daftarKos
-                      .where((kost) => kost.type.toLowerCase() == _selectedCategory.toLowerCase())
-                      .toList();
-                }
+                final List<KosModel> semuaKos = snapshot.data ?? [];
+                final List<KosModel> daftarKos =
+                semuaKos.where(_filter.matches).toList();
 
                 if (daftarKos.isEmpty) {
                   return const Center(
