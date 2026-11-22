@@ -182,7 +182,7 @@ class _AdminScreenState extends State<AdminScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => AddEditKosScreen(kost: kost),
+                                    builder: (_) => AddEditKosScreen(),
                                   ),
                                 );
                               },
