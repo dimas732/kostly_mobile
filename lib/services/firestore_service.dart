@@ -55,8 +55,11 @@ class FirestoreService {
     final String? currentUserId = _auth.currentUser?.uid;
     if (currentUserId == null) return;
 
-    Map<String, dynamic> dataKos = kos.toFirestore();
+    final Map<String, dynamic> dataKos = kos.toFirestore();
     dataKos['user_id'] = currentUserId;
+    dataKos['created_at'] = kos.createdAt != null
+        ? Timestamp.fromDate(kos.createdAt!)
+        : FieldValue.serverTimestamp();
 
     await _db.collection('kos').add(dataKos);
   }
