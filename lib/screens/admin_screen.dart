@@ -85,8 +85,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
           // Hitung Statistik Sederhana
           final int totalKos = daftarKos.length;
-          final int totalPutra = daftarKos.where((k) => k.type.toLowerCase() == 'putra').length;
-          final int totalPutri = daftarKos.where((k) => k.type.toLowerCase() == 'putri').length;
+          // Penuh = tidak ada kamar tersedia; Tersedia = masih ada kamar kosong
+          final int totalPenuh = daftarKos.where((k) => k.kamarTersedia <= 0).length;
+          final int totalTersedia = totalKos - totalPenuh;
 
           return Column(
             children: [
@@ -96,11 +97,11 @@ class _AdminScreenState extends State<AdminScreen> {
                 color: Colors.white,
                 child: Row(
                   children: [
-                    _buildStatCard('Total Kos', totalKos.toString(), Icons.home, AppTheme.primaryBlue),
+                    _buildStatCard('Total', totalKos.toString(), Icons.home, AppTheme.primaryBlue),
                     const SizedBox(width: 10),
-                    _buildStatCard('Kos Putra', totalPutra.toString(), Icons.male, Colors.orange),
+                    _buildStatCard('Penuh', totalPenuh.toString(), Icons.block, Colors.red),
                     const SizedBox(width: 10),
-                    _buildStatCard('Kos Putri', totalPutri.toString(), Icons.female, Colors.pink),
+                    _buildStatCard('Tersedia', totalTersedia.toString(), Icons.check_circle_outline, Colors.green),
                   ],
                 ),
               ),
