@@ -29,15 +29,50 @@ class UserModel {
     return workflow ?? stored ?? 'none';
   }
 
+  // Data profil lama dapat menggunakan nama field camelCase.
+  static String profileName(Map<String, dynamic> data) =>
+      _firstProfileValue(data, ['fullName', 'name']);
+
+  static String profilePhone(Map<String, dynamic> data) =>
+      _firstProfileValue(data, ['phoneNumber', 'phone_number', 'phone']);
+
+  static String _firstProfileValue(
+    Map<String, dynamic> data,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = data[key];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
+    }
+    return '';
+  }
+
+  // Hanya field profil yang boleh diubah. Sinkronkan alias jika sudah ada.
+  static Map<String, dynamic> profileUpdates(
+    Map<String, dynamic> current, {
+    required String name,
+    required String phone,
+  }) {
+    final cleanName = name.trim();
+    final cleanPhone = phone.trim();
+    return {
+      'name': cleanName,
+      'phone_number': cleanPhone,
+      if (current.containsKey('fullName')) 'fullName': cleanName,
+      if (current.containsKey('phoneNumber')) 'phoneNumber': cleanPhone,
+      if (current.containsKey('phone')) 'phone': cleanPhone,
+    };
+  }
+
   factory UserModel.fromFirestore(
     Map<String, dynamic> json,
     String documentId,
   ) {
     return UserModel(
       uid: documentId,
-      name: json['name'] ?? '',
+      name: profileName(json),
       email: json['email'] ?? '',
-      phone_number: json['phone_number'] ?? '',
+      phone_number: profilePhone(json),
       roles: json['roles'] ?? 'seeker',
       verification_status: accountStatus(json),
     );

@@ -9,6 +9,7 @@ import '../admin_screen.dart';
 import '../add_edit_kos_screen.dart';
 import '../../models/user_model.dart';
 import '../../widgets/kos_thumbnail.dart';
+import 'settings_screen.dart';
 
 import 'package:intl/intl.dart';
 
@@ -49,7 +50,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.black87),
             onPressed: () {
-              // Aksi ke halaman pengaturan/setting
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SettingsScreen(userId: widget.userId),
+                ),
+              );
             },
           ),
         ],
@@ -69,13 +74,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+          final profileName = UserModel.profileName(userData);
+          final profilePhone = UserModel.profilePhone(userData);
           final String name =
-              userData['fullName'] ?? userData['name'] ?? 'Pengguna KostLy';
-          final String phone =
-              userData['phoneNumber'] ??
-              userData['phone_number'] ??
-              userData['phone'] ??
-              '-';
+              profileName.isEmpty ? 'Pengguna KostLy' : profileName;
+          final String phone = profilePhone.isEmpty ? '-' : profilePhone;
           final String email = userData['email'] ?? '-';
           final String verificationStatus = UserModel.accountStatus(userData);
           final String role = (userData['roles'] ?? userData['role'] ?? '')
@@ -133,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             radius: 32,
             backgroundColor: isOwner ? Colors.green : _blue,
             child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : 'U',
+              name.isNotEmpty ? name.characters.first.toUpperCase() : 'U',
               style: const TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
@@ -197,9 +200,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     const Icon(Icons.phone, size: 14, color: Colors.grey),
                     const SizedBox(width: 6),
-                    Text(
-                      phone,
-                      style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    Flexible(
+                      child: Text(
+                        phone,
+                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
                     ),
                   ],
                 ),
