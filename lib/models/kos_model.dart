@@ -23,6 +23,15 @@ class KosModel {
   final int kamarTersedia;
   final String? ukuranKamar;
 
+  static const _unchanged = Object();
+  final String? verificationStatus;
+  final DateTime? verificationSubmittedAt;
+  final DateTime? verificationUpdatedAt;
+  final DateTime? verifiedAt;
+  final String rejectionReason;
+  final DateTime? telegramSentFor;
+  final String? telegramDeliveryStatus;
+
   const KosModel({
     required this.id,
     required this.name,
@@ -33,6 +42,13 @@ class KosModel {
     required this.type,
     required this.userId,
     this.createdAt,
+    this.verificationStatus,
+    this.verificationSubmittedAt,
+    this.verificationUpdatedAt,
+    this.verifiedAt,
+    this.rejectionReason = '',
+    this.telegramSentFor,
+    this.telegramDeliveryStatus,
     this.images = const [],
     this.listrikCost = 0,
     this.airCost = 0,
@@ -61,6 +77,11 @@ class KosModel {
     String? type,
     String? userId,
     DateTime? createdAt,
+    Object? verificationStatus = _unchanged,
+    Object? verificationSubmittedAt = _unchanged,
+    Object? verificationUpdatedAt = _unchanged,
+    Object? verifiedAt = _unchanged,
+    String? rejectionReason,
     List<String>? images,
     int? listrikCost,
     int? airCost,
@@ -73,6 +94,21 @@ class KosModel {
     String? ukuranKamar,
   }) {
     return KosModel(
+      verificationStatus: identical(verificationStatus, _unchanged)
+          ? this.verificationStatus
+          : verificationStatus as String?,
+      verificationSubmittedAt: identical(verificationSubmittedAt, _unchanged)
+          ? this.verificationSubmittedAt
+          : verificationSubmittedAt as DateTime?,
+      verificationUpdatedAt: identical(verificationUpdatedAt, _unchanged)
+          ? this.verificationUpdatedAt
+          : verificationUpdatedAt as DateTime?,
+      verifiedAt: identical(verifiedAt, _unchanged)
+          ? this.verifiedAt
+          : verifiedAt as DateTime?,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      telegramSentFor: telegramSentFor,
+      telegramDeliveryStatus: telegramDeliveryStatus,
       id: id ?? this.id,
       name: name ?? this.name,
       address: address ?? this.address,
@@ -104,8 +140,8 @@ class KosModel {
     final recurring = data['reccuring_cost'] is Map
         ? Map<String, dynamic>.from(data['reccuring_cost'] as Map)
         : (data['recurring_cost'] is Map
-        ? Map<String, dynamic>.from(data['recurring_cost'] as Map)
-        : <String, dynamic>{});
+              ? Map<String, dynamic>.from(data['recurring_cost'] as Map)
+              : <String, dynamic>{});
 
     int parseInt(dynamic val, [int fallback = 0]) {
       if (val is int) return val;
@@ -135,6 +171,13 @@ class KosModel {
     }
 
     return KosModel(
+      verificationStatus: data['verification_status']?.toString(),
+      verificationSubmittedAt: parseDate(data['verification_submitted_at']),
+      verificationUpdatedAt: parseDate(data['verification_updated_at']),
+      verifiedAt: parseDate(data['verified_at']),
+      rejectionReason: data['rejection_reason']?.toString() ?? '',
+      telegramSentFor: parseDate(data['telegram_sent_for']),
+      telegramDeliveryStatus: data['telegram_delivery_status'] as String?,
       id: id,
       name: (data['name'] ?? '').toString(),
       address: (data['address'] ?? '').toString(),
@@ -159,24 +202,36 @@ class KosModel {
 
   Map<String, dynamic> toFirestore() {
     return {
+      ...propertyFields(),
+      'user_id': userId,
+      'created_at': createdAt == null
+          ? FieldValue.serverTimestamp()
+          : Timestamp.fromDate(createdAt!),
+      if (verificationStatus != null) 'verification_status': verificationStatus,
+      'verification_submitted_at': verificationSubmittedAt == null
+          ? null
+          : Timestamp.fromDate(verificationSubmittedAt!),
+      'verification_updated_at': verificationUpdatedAt == null
+          ? null
+          : Timestamp.fromDate(verificationUpdatedAt!),
+      'verified_at': verifiedAt == null
+          ? null
+          : Timestamp.fromDate(verifiedAt!),
+      'rejection_reason': rejectionReason,
+    };
+  }
+
+  Map<String, dynamic> propertyFields() {
+    return {
       'name': name,
       'address': address,
       'description': description,
       'rent_price': rentPrice,
       'status': status,
       'type': type,
-      'user_id': userId,
-      'created_at': createdAt != null
-          ? Timestamp.fromDate(createdAt!)
-          : FieldValue.serverTimestamp(),
       'images': images,
-      'electrical_cost': {
-        'listrik': listrikCost,
-      },
-      'reccuring_cost': {
-        'air': airCost,
-        'wifi': wifiCost,
-      },
+      'electrical_cost': {'listrik': listrikCost},
+      'reccuring_cost': {'air': airCost, 'wifi': wifiCost},
       'include_listrik': includeListrik,
       'fasilitas_kamar': fasilitasKamar,
       'fasilitas_area': fasilitasArea,

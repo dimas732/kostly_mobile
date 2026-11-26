@@ -1,7 +1,9 @@
 import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../models/kos_model.dart';
 import '../services/firestore_service.dart';
 import '../core/app_theme.dart'; // Sesuaikan path folder app_theme.dart jika berbeda
@@ -9,7 +11,8 @@ import '../core/app_theme.dart'; // Sesuaikan path folder app_theme.dart jika be
 class AddEditKosScreen extends StatefulWidget {
   final KosModel? kost;
 
-  const AddEditKosScreen({super.key, this.kost});
+  final bool resubmit;
+  const AddEditKosScreen({super.key, this.kost, this.resubmit = false});
 
   @override
   State<AddEditKosScreen> createState() => _AddEditKosScreenState();
@@ -85,12 +88,16 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
     _selectedFasilitasArea = Set<String>.from(kos?.fasilitasArea ?? const []);
 
     _totalKamarController = TextEditingController(
-      text: (kos != null && kos.totalKamar > 0) ? kos.totalKamar.toString() : '',
+      text: (kos != null && kos.totalKamar > 0)
+          ? kos.totalKamar.toString()
+          : '',
     );
     _kamarTersediaController = TextEditingController(
       text: kos != null ? kos.kamarTersedia.toString() : '',
     );
-    _ukuranKamarController = TextEditingController(text: kos?.ukuranKamar ?? '');
+    _ukuranKamarController = TextEditingController(
+      text: kos?.ukuranKamar ?? '',
+    );
 
     final existingKamar = List<String>.from(kos?.fasilitasKamar ?? const []);
     for (final km in _opsiKamarMandi) {
@@ -130,13 +137,19 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
         _showMessage('Nama kos wajib diisi.');
         return false;
       }
+      if (_alamatController.text.trim().isEmpty) {
+        _showMessage('Alamat kos wajib diisi.');
+        return false;
+      }
       final harga = int.tryParse(_hargaController.text.trim()) ?? 0;
       if (harga <= 0) {
         _showMessage('Masukkan harga sewa per bulan yang valid.');
         return false;
       }
       if (_isIncludeListrik == null) {
-        _showMessage('Pilih apakah harga sewa sudah termasuk listrik atau tidak.');
+        _showMessage(
+          'Pilih apakah harga sewa sudah termasuk listrik atau tidak.',
+        );
         return false;
       }
     } else if (step == 1) {
@@ -270,6 +283,9 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
 
       final kosModel = KosModel(
         id: widget.kost?.id ?? '',
+        verificationStatus: widget.kost == null
+            ? 'pending'
+            : widget.kost!.verificationStatus,
         name: _namaKosController.text.trim(),
         address: _alamatController.text.trim(),
         description: _deskripsiController.text.trim(),
@@ -296,16 +312,16 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
 
       if (widget.kost == null) {
         await _firestoreService.addKost(kosModel);
+      } else if (widget.resubmit) {
+        await _firestoreService.resubmit(kosModel);
       } else {
         await _firestoreService.updateKost(kosModel);
       }
-
+      final message = widget.kost == null || widget.resubmit
+          ? 'Kos tersimpan. Pengajuan masuk antrean Telegram.'
+          : 'Perubahan data kos berhasil disimpan!';
       if (!mounted) return;
-      _showMessage(
-        widget.kost == null
-            ? 'Data kos berhasil ditambahkan!'
-            : 'Perubahan data kos berhasil disimpan!',
-      );
+      _showMessage(message);
       Navigator.of(context).pop(true);
     } catch (e) {
       _showMessage('Gagal menyimpan data kos: $e');
@@ -377,7 +393,9 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
 
           return Expanded(
             child: Padding(
-              padding: EdgeInsets.only(right: index < titles.length - 1 ? 8 : 0),
+              padding: EdgeInsets.only(
+                right: index < titles.length - 1 ? 8 : 0,
+              ),
               child: Column(
                 children: [
                   Row(
@@ -388,7 +406,9 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
                         height: 24,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: (isDone || isActive) ? primaryBlue : Colors.white,
+                          color: (isDone || isActive)
+                              ? primaryBlue
+                              : Colors.white,
                           border: Border.all(
                             color: (isDone || isActive)
                                 ? primaryBlue
@@ -397,15 +417,21 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
                         ),
                         child: Center(
                           child: isDone
-                              ? const Icon(Icons.check, size: 14, color: Colors.white)
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: Colors.white,
+                                )
                               : Text(
-                            '${index + 1}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isActive ? Colors.white : Colors.grey.shade600,
-                            ),
-                          ),
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isActive
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -415,8 +441,12 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                            color: (isDone || isActive) ? Colors.black87 : Colors.grey,
+                            fontWeight: isActive
+                                ? FontWeight.bold
+                                : FontWeight.w500,
+                            color: (isDone || isActive)
+                                ? Colors.black87
+                                : Colors.grey,
                           ),
                         ),
                       ),
@@ -426,7 +456,9 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
                   Container(
                     height: 3,
                     decoration: BoxDecoration(
-                      color: (isDone || isActive) ? primaryBlue : Colors.grey.shade200,
+                      color: (isDone || isActive)
+                          ? primaryBlue
+                          : Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -684,27 +716,37 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: (_isPickingImages || _isSaving) ? null : _pickMultipleImages,
+              onPressed: (_isPickingImages || _isSaving)
+                  ? null
+                  : _pickMultipleImages,
               icon: _isPickingImages
                   ? SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: primaryBlue,
-                ),
-              )
-                  : Icon(Icons.add_photo_alternate_outlined, color: primaryBlue),
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: primaryBlue,
+                      ),
+                    )
+                  : Icon(
+                      Icons.add_photo_alternate_outlined,
+                      color: primaryBlue,
+                    ),
               label: Text(
                 _isPickingImages
                     ? 'Memproses foto...'
                     : 'Pilih Banyak Foto (${_imagesBase64.length}/$_maxImages)',
-                style: TextStyle(color: primaryBlue, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: primaryBlue,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 side: BorderSide(color: primaryBlue),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ),
@@ -720,7 +762,11 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
               ),
               child: Column(
                 children: [
-                  Icon(Icons.image_outlined, size: 36, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.image_outlined,
+                    size: 36,
+                    color: Colors.grey.shade400,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Belum ada foto yang dipilih.',
@@ -754,17 +800,21 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
       preview = Image.network(
         imageStr,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+        errorBuilder: (_, __, ___) =>
+            const Center(child: Icon(Icons.broken_image)),
       );
     } else {
       final commaIdx = imageStr.indexOf(',');
-      final rawBase64 = commaIdx != -1 ? imageStr.substring(commaIdx + 1) : imageStr;
+      final rawBase64 = commaIdx != -1
+          ? imageStr.substring(commaIdx + 1)
+          : imageStr;
       try {
         final bytes = base64Decode(rawBase64);
         preview = Image.memory(
           bytes,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image)),
+          errorBuilder: (_, __, ___) =>
+              const Center(child: Icon(Icons.broken_image)),
         );
       } catch (_) {
         preview = const Center(child: Icon(Icons.broken_image));
@@ -887,7 +937,9 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   side: BorderSide(color: Colors.grey.shade300),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 child: Text(
                   _currentStep == 0 ? 'Batal' : 'Sebelumnya',
@@ -902,24 +954,28 @@ class _AddEditKosScreenState extends State<AddEditKosScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryBlue,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 child: _isSaving
                     ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(
-                  isLastStep ? 'Simpan Kos' : 'Berikutnya',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                        isLastStep
+                            ? (widget.resubmit ? 'Ajukan Ulang' : 'Simpan Kos')
+                            : 'Berikutnya',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],

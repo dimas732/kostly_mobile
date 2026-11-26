@@ -1,0 +1,8 @@
+{
+  "name": "kostly-property-verification",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {"start": "node server.js", "test": "node --test workflow.test.js"},
+  "dependencies": {"firebase-admin": "^13.0.0"}
+}

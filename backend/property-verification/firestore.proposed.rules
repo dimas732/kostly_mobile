@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Merge only after checking the production rules for overlapping grants.
+    match /kos/{id} {
+      function signedIn() { return request.auth != null; }
+      function ownerRole() {
+        let user = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+        return user.get('roles', user.get('role', '')) == 'owner';
+      }
+      function mine() { return signedIn() && resource.data.user_id == request.auth.uid; }
+      function fields() {
+        return ['name','address','description','rent_price','status','type','images',
+                'electrical_cost','reccuring_cost','include_listrik','fasilitas_kamar',
+                'fasilitas_area','total_kamar','kamar_tersedia','ukuran_kamar'];
+      }
+      function submission() {
+        return ['verification_status','verification_submitted_at','verification_updated_at',
+                'verified_at','rejection_reason','telegram_delivery_status'];
+      }
+      function pending() {
+        let d = request.resource.data;
+        return d.get('telegram_delivery_status','queued') == 'queued' && d.verification_status == 'pending' && d.verified_at == null &&
+               d.rejection_reason == '' && d.verification_submitted_at == request.time &&
+               d.verification_updated_at == request.time;
+      }
+      allow get: if mine() || (signedIn() && (!('verification_status' in resource.data) ||
+                    resource.data.verification_status == 'verified'));
+      allow list: if mine() || (signedIn() && resource.data.verification_status == 'verified');
+      allow create: if signedIn() && ownerRole() && request.resource.data.user_id == request.auth.uid &&
+                    request.resource.data.created_at == request.time && pending() &&
+                    request.resource.data.keys().hasOnly(fields().concat(submission()).concat(['user_id','created_at']));
+      allow update: if mine() && ownerRole() &&
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields()) ||
+         (resource.data.get('verification_status','') == 'pending' &&
+          resource.data.get('telegram_delivery_status','') in ['', 'failed'] &&
+          request.resource.data.telegram_delivery_status == 'queued' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['telegram_delivery_status'])) ||
+         (resource.data.get('verification_status','') == 'rejected' && pending() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields().concat(submission()))));
+      allow delete: if mine() && ownerRole();
+    }
+  }
+}

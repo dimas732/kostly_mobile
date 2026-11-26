@@ -1,9 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
 
 class TelegramService {
-  static const String _botToken = '9136558902:AAEMHJjQ111W2CvsePGod3YO46_-VoIJJ74';
+  static const _botToken = String.fromEnvironment('OWNER_TELEGRAM_BOT_TOKEN');
+
+  static void checkOwnerConfiguration() {
+    if (_botToken.isEmpty) {
+      throw StateError('Konfigurasi notifikasi akun pemilik belum tersedia.');
+    }
+  }
+
   static const String _adminChatId = '-1004354520855';
 
   static Future<void> sendOwnerApplicationNotification({
@@ -24,7 +32,8 @@ class TelegramService {
 
     // 2. Kirim detail teks + Tombol Approve/Reject
     final url = Uri.parse('https://api.telegram.org/bot$_botToken/sendMessage');
-    final String message = '''
+    final String message =
+        '''
 📢 <b>PENGAJUAN OWNER KOS BARU!</b>
 
 👤 <b>Nama:</b> $fullName
@@ -48,15 +57,18 @@ Silakan tinjau ketiga foto di atas dan berikan keputusan:
           'reply_markup': {
             'inline_keyboard': [
               [
-                {'text': '✅ Setujui (Approve)', 'callback_data': 'approve_$userId'},
-                {'text': '❌ Tolak (Reject)', 'callback_data': 'reject_$userId'}
-              ]
-            ]
-          }
+                {
+                  'text': '✅ Setujui (Approve)',
+                  'callback_data': 'approve_$userId',
+                },
+                {'text': '❌ Tolak (Reject)', 'callback_data': 'reject_$userId'},
+              ],
+            ],
+          },
         }),
       );
     } catch (e) {
-      print('Error mengirim notifikasi Telegram: $e');
+      throw StateError('Pengiriman notifikasi akun belum terkonfirmasi.');
     }
   }
 

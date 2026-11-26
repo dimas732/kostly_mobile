@@ -1,6 +1,8 @@
-import 'dart:convert'; // 🔹 Ditambahkan untuk decode data Base64
+import '../widgets/kos_thumbnail.dart';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Ditambahkan untuk mengambil UID user aktif
+
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../models/kos_model.dart';
@@ -39,7 +41,7 @@ class _AdminScreenState extends State<AdminScreen> {
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const HomeScreen()),
-                    (route) => false,
+                (route) => false,
               );
             },
           ),
@@ -49,7 +51,8 @@ class _AdminScreenState extends State<AdminScreen> {
             icon: const Icon(Icons.person_outline, color: Colors.black87),
             tooltip: 'Profil Saya',
             onPressed: () {
-              final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+              final String currentUserId =
+                  FirebaseAuth.instance.currentUser?.uid ?? '';
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -86,7 +89,9 @@ class _AdminScreenState extends State<AdminScreen> {
           // Hitung Statistik Sederhana
           final int totalKos = daftarKos.length;
           // Penuh = tidak ada kamar tersedia; Tersedia = masih ada kamar kosong
-          final int totalPenuh = daftarKos.where((k) => k.kamarTersedia <= 0).length;
+          final int totalPenuh = daftarKos
+              .where((k) => k.kamarTersedia <= 0)
+              .length;
           final int totalTersedia = totalKos - totalPenuh;
 
           return Column(
@@ -97,11 +102,26 @@ class _AdminScreenState extends State<AdminScreen> {
                 color: Colors.white,
                 child: Row(
                   children: [
-                    _buildStatCard('Total', totalKos.toString(), Icons.home, AppTheme.primaryBlue),
+                    _buildStatCard(
+                      'Total',
+                      totalKos.toString(),
+                      Icons.home,
+                      AppTheme.primaryBlue,
+                    ),
                     const SizedBox(width: 10),
-                    _buildStatCard('Penuh', totalPenuh.toString(), Icons.block, Colors.red),
+                    _buildStatCard(
+                      'Penuh',
+                      totalPenuh.toString(),
+                      Icons.block,
+                      Colors.red,
+                    ),
                     const SizedBox(width: 10),
-                    _buildStatCard('Tersedia', totalTersedia.toString(), Icons.check_circle_outline, Colors.green),
+                    _buildStatCard(
+                      'Tersedia',
+                      totalTersedia.toString(),
+                      Icons.check_circle_outline,
+                      Colors.green,
+                    ),
                   ],
                 ),
               ),
@@ -110,13 +130,19 @@ class _AdminScreenState extends State<AdminScreen> {
 
               // 2. JUDUL DAFTAR KOS
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       'Kelola Properti Kos Saya',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       '${daftarKos.length} Item',
@@ -130,75 +156,89 @@ class _AdminScreenState extends State<AdminScreen> {
               Expanded(
                 child: daftarKos.isEmpty
                     ? const Center(
-                  child: Text(
-                    'Belum ada data kos yang Anda tambahkan.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                )
+                        child: Text(
+                          'Belum ada data kos yang Anda tambahkan.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
                     : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: daftarKos.length,
-                  itemBuilder: (context, index) {
-                    final kost = daftarKos[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 1.5,
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: _buildKosImage(
-                              kost.images.isNotEmpty ? kost.images.first : '',
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: daftarKos.length,
+                        itemBuilder: (context, index) {
+                          final kost = daftarKos[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                          ),
-                        ),
-                        title: Text(
-                          kost.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text('Rp ${kost.rentPrice}/bulan'),
-                            Text(
-                              'Kategori: ${kost.type}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Edit Button
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined, color: Colors.blue),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AddEditKosScreen(),
+                            elevation: 1.5,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.all(12),
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: SizedBox(
+                                  width: 60,
+                                  height: 60,
+                                  child: kosThumbnail(
+                                    kost.images.isNotEmpty
+                                        ? kost.images.first
+                                        : '',
                                   ),
-                                );
-                              },
+                                ),
+                              ),
+                              title: Text(
+                                kost.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text('Rp ${kost.rentPrice}/bulan'),
+                                  Text(
+                                    'Kategori: ${kost.type}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Edit Button
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit_outlined,
+                                      color: Colors.blue,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => AddEditKosScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  // Delete Button
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed: () =>
+                                        _confirmDelete(context, kost),
+                                  ),
+                                ],
+                              ),
                             ),
-                            // Delete Button
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => _confirmDelete(context, kost),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           );
@@ -209,7 +249,10 @@ class _AdminScreenState extends State<AdminScreen> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppTheme.primaryBlue,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Tambah Kos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: const Text(
+          'Tambah Kos',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         onPressed: () {
           Navigator.push(
             context,
@@ -221,51 +264,13 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   // 🔹 Helper untuk Menampilkan Gambar (Base64 Maupun Network URL)
-  Widget _buildKosImage(String imagePath) {
-    if (imagePath.isEmpty) {
-      return Container(
-        width: 60,
-        height: 60,
-        color: Colors.grey[300],
-        child: const Icon(Icons.image_not_supported, color: Colors.grey),
-      );
-    }
-
-    try {
-      String base64Str = imagePath;
-
-      // Jika string mengandung header data:image, bersihkan dulu untuk mengambil kodenya saja
-      if (imagePath.startsWith('data:image')) {
-        base64Str = imagePath.split(',').last;
-      }
-
-      // Decode string Base64 menjadi bytes
-      final bytes = base64Decode(base64Str);
-      return Image.memory(
-        bytes,
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-      );
-    } catch (e) {
-      // Jika gagal decode Base64, coba anggap sebagai URL biasa (Network Image)
-      return Image.network(
-        imagePath,
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: 60,
-          height: 60,
-          color: Colors.grey[300],
-          child: const Icon(Icons.broken_image, color: Colors.grey),
-        ),
-      );
-    }
-  }
-
   // Widget Kartu Statistik Sederhana
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
@@ -280,7 +285,11 @@ class _AdminScreenState extends State<AdminScreen> {
             const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
             Text(
               title,

@@ -1,7 +1,9 @@
 import 'dart:convert'; // 🔹 Wajib untuk decode Base64
+
 import 'package:flutter/material.dart';
 
 import '../core/app_theme.dart';
+import '../services/firestore_service.dart';
 import '../models/kos_model.dart';
 import 'electricity_calculator_screen.dart'; // Pastikan path file kalkulator sudah benar
 
@@ -15,19 +17,42 @@ class DetailScreen extends StatefulWidget {
 }
 
 class _DetailScreenState extends State<DetailScreen> {
-  int _currentImageIndex = 0; // 🔹 Menyimpan indeks foto yang sedang aktif di slider
+  late final _property = FirestoreService().publicDetail(widget.kost.id);
+  int _currentImageIndex =
+      0; // 🔹 Menyimpan indeks foto yang sedang aktif di slider
 
   // Helper format angka ke Rupiah, contoh: 1500000 -> Rp 1.500.000
   String _formatRupiah(num amount) {
     final formatted = amount.round().toString().replaceAllMapped(
       RegExp(r'(\d)(?=(\d{3})+$)'),
-          (Match m) => '${m[1]}.',
+      (Match m) => '${m[1]}.',
     );
     return 'Rp $formatted';
   }
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<KosModel?>(
+      stream: _property,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final kos = snapshot.data;
+        if (snapshot.hasError || kos == null) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: const Center(child: Text('Properti tidak tersedia.')),
+          );
+        }
+        return _detail(kos);
+      },
+    );
+  }
+
+  Widget _detail(KosModel kos) {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: CustomScrollView(
@@ -38,9 +63,7 @@ class _DetailScreenState extends State<DetailScreen> {
             pinned: true,
             backgroundColor: Colors.white,
             foregroundColor: Colors.black87,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildImageSlider(),
-            ),
+            flexibleSpace: FlexibleSpaceBar(background: _buildImageSlider(kos)),
           ),
 
           SliverToBoxAdapter(
@@ -55,7 +78,7 @@ class _DetailScreenState extends State<DetailScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          widget.kost.name,
+                          kos.name,
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -65,13 +88,16 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                       const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryBlue.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          widget.kost.type,
+                          kos.type,
                           style: TextStyle(
                             color: AppTheme.primaryBlue,
                             fontWeight: FontWeight.w600,
@@ -88,12 +114,20 @@ class _DetailScreenState extends State<DetailScreen> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 18, color: Colors.grey),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          widget.kost.address,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.3),
+                          kos.address,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                            height: 1.3,
+                          ),
                         ),
                       ),
                     ],
@@ -117,7 +151,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           style: TextStyle(fontSize: 14, color: Colors.black54),
                         ),
                         Text(
-                          '${_formatRupiah(widget.kost.rentPrice)} / bulan',
+                          '${_formatRupiah(kos.rentPrice)} / bulan',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -141,8 +175,14 @@ class _DetailScreenState extends State<DetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    widget.kost.description.isEmpty ? 'Belum ada deskripsi.' : widget.kost.description,
-                    style: const TextStyle(fontSize: 14, color: Colors.black54, height: 1.5),
+                    kos.description.isEmpty
+                        ? 'Belum ada deskripsi.'
+                        : kos.description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                      height: 1.5,
+                    ),
                   ),
 
                   const SizedBox(height: 32),
@@ -167,7 +207,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Hubungi pemilik ${widget.kost.name}')),
+                      SnackBar(content: Text('Hubungi pemilik ${kos.name}')),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -199,7 +239,8 @@ class _DetailScreenState extends State<DetailScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const ElectricityCalculatorScreen(),
+                        builder: (context) =>
+                            const ElectricityCalculatorScreen(),
                       ),
                     );
                   },
@@ -210,7 +251,11 @@ class _DetailScreenState extends State<DetailScreen> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  icon: Icon(Icons.flash_on_rounded, color: AppTheme.primaryBlue, size: 20),
+                  icon: Icon(
+                    Icons.flash_on_rounded,
+                    color: AppTheme.primaryBlue,
+                    size: 20,
+                  ),
                   label: Text(
                     'Kalkulator Biaya Listrik',
                     style: TextStyle(
@@ -229,8 +274,8 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   // 🔹 Widget Slider untuk Mendukung Banyak Foto + Indikator Titik
-  Widget _buildImageSlider() {
-    final images = widget.kost.images;
+  Widget _buildImageSlider(KosModel kos) {
+    final images = kos.images;
 
     final placeholder = Container(
       color: Colors.grey[300],
@@ -286,7 +331,9 @@ class _DetailScreenState extends State<DetailScreen> {
     if (imagePath.isEmpty) {
       return Container(
         color: Colors.grey[300],
-        child: const Center(child: Icon(Icons.home_work_outlined, size: 56, color: Colors.grey)),
+        child: const Center(
+          child: Icon(Icons.home_work_outlined, size: 56, color: Colors.grey),
+        ),
       );
     }
 
@@ -298,11 +345,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
       // Coba decode sebagai Base64
       final bytes = base64Decode(base64Str);
-      return Image.memory(
-        bytes,
-        fit: BoxFit.cover,
-        width: double.infinity,
-      );
+      return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity);
     } catch (e) {
       // Jika gagal decode Base64, anggap sebagai URL internet biasa
       return Image.network(
@@ -311,7 +354,9 @@ class _DetailScreenState extends State<DetailScreen> {
         width: double.infinity,
         errorBuilder: (context, error, stackTrace) => Container(
           color: Colors.grey[300],
-          child: const Center(child: Icon(Icons.broken_image, size: 48, color: Colors.grey)),
+          child: const Center(
+            child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+          ),
         ),
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;

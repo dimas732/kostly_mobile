@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Ditambahkan untuk mengambil UID user aktif
 
@@ -23,6 +24,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
 
+  late final _catalogue = _firestoreService.getDaftarKos();
+
   // 🔍 Filter pencarian (nama, lokasi, tipe kos, harga)
   KosFilter _filter = const KosFilter();
 
@@ -37,16 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
   // True jika ada pencarian / filter yang sedang aktif
   bool get _hasActiveFilter =>
       _filter.query.trim().isNotEmpty ||
-          _filter.location.trim().isNotEmpty ||
-          _filter.type != 'Semua' ||
-          !_filter.isPriceDefault;
+      _filter.location.trim().isNotEmpty ||
+      _filter.type != 'Semua' ||
+      !_filter.isPriceDefault;
 
   void _openDetail(KosModel kost) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => DetailScreen(kost: kost),
-      ),
+      MaterialPageRoute(builder: (context) => DetailScreen(kost: kost)),
     );
   }
 
@@ -57,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const AuthGate()),
-          (route) => false,
+      (route) => false,
     );
   }
 
@@ -121,17 +122,19 @@ class _HomeScreenState extends State<HomeScreen> {
     // Daftar halaman utama berdasarkan urutan ikon BottomNavigationBar:
     final List<Widget> pages = [
       _buildHomeContent(),
-      const Center(child: Text('Halaman Cari / Explore', style: TextStyle(fontSize: 16, color: Colors.grey))),
+      const Center(
+        child: Text(
+          'Halaman Cari / Explore',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      ),
       const WishlistScreen(),
       ProfileScreen(userId: currentUserId),
     ];
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: IndexedStack(
-        index: _selectedBottomNav,
-        children: pages,
-      ),
+      body: IndexedStack(index: _selectedBottomNav, children: pages),
 
       // Dynamic Fluid Drag Navigation Bar
       bottomNavigationBar: SafeArea(
@@ -172,11 +175,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       {'icon': Icons.person_rounded, 'label': 'Profil'},
                     ];
 
-                    final double itemWidth = constraints.maxWidth / items.length;
+                    final double itemWidth =
+                        constraints.maxWidth / items.length;
 
                     // Menghitung posisi bubble berdasarkan koordinat jari
                     void updatePositionFromOffset(Offset localPosition) {
-                      double pos = (localPosition.dx - (itemWidth / 2)) / itemWidth;
+                      double pos =
+                          (localPosition.dx - (itemWidth / 2)) / itemWidth;
                       pos = pos.clamp(0.0, (items.length - 1).toDouble());
 
                       setState(() {
@@ -253,8 +258,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           // 2. Ikon dan teks navigasi
                           Row(
                             children: List.generate(items.length, (index) {
-                              final double distance = (_currentPos - index).abs();
-                              final double activeFactor = (1.0 - distance).clamp(0.0, 1.0);
+                              final double distance = (_currentPos - index)
+                                  .abs();
+                              final double activeFactor = (1.0 - distance)
+                                  .clamp(0.0, 1.0);
 
                               return Expanded(
                                 child: Row(
@@ -335,11 +342,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     IconButton(
                       onPressed: () {},
-                      icon: const Icon(Icons.notifications_none_rounded, size: 26),
+                      icon: const Icon(
+                        Icons.notifications_none_rounded,
+                        size: 26,
+                      ),
                       color: Colors.black87,
                     ),
                     IconButton(
-                      icon: const Icon(Icons.logout, size: 24, color: Colors.redAccent),
+                      icon: const Icon(
+                        Icons.logout,
+                        size: 24,
+                        color: Colors.redAccent,
+                      ),
                       onPressed: _handleSignOut,
                     ),
                   ],
@@ -374,20 +388,31 @@ class _HomeScreenState extends State<HomeScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 14,
-                          color: _hasActiveFilter ? Colors.black87 : Colors.grey,
+                          color: _hasActiveFilter
+                              ? Colors.black87
+                              : Colors.grey,
                         ),
                       ),
                     ),
                     if (_hasActiveFilter)
                       GestureDetector(
-                        onTap: () => setState(() => _filter = const KosFilter()),
+                        onTap: () =>
+                            setState(() => _filter = const KosFilter()),
                         child: const Padding(
                           padding: EdgeInsets.all(4),
-                          child: Icon(Icons.clear, size: 18, color: Colors.grey),
+                          child: Icon(
+                            Icons.clear,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
                         ),
                       )
                     else
-                      const Icon(Icons.tune_rounded, size: 20, color: Colors.grey),
+                      const Icon(
+                        Icons.tune_rounded,
+                        size: 20,
+                        color: Colors.grey,
+                      ),
                   ],
                 ),
               ),
@@ -416,7 +441,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     backgroundColor: Colors.grey[200],
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : Colors.grey[700],
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       fontSize: 13,
                     ),
                     shape: RoundedRectangleBorder(
@@ -445,19 +472,22 @@ class _HomeScreenState extends State<HomeScreen> {
           // 4. Katalog Kos (Grid Firestore + filter nama, lokasi, tipe, harga)
           Expanded(
             child: StreamBuilder<List<KosModel>>(
-              stream: _firestoreService.getDaftarKos(),
+              stream: _catalogue,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
+                  return Center(
+                    child: Text('Terjadi kesalahan: ${snapshot.error}'),
+                  );
                 }
 
                 final List<KosModel> semuaKos = snapshot.data ?? [];
-                final List<KosModel> daftarKos =
-                semuaKos.where(_filter.matches).toList();
+                final List<KosModel> daftarKos = semuaKos
+                    .where(_filter.matches)
+                    .toList();
 
                 if (daftarKos.isEmpty) {
                   return const Center(
@@ -469,7 +499,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
 
                 return GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 14,
@@ -479,10 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: daftarKos.length,
                   itemBuilder: (context, index) {
                     final kost = daftarKos[index];
-                    return KosCard(
-                      kost: kost,
-                      onTap: () => _openDetail(kost),
-                    );
+                    return KosCard(kost: kost, onTap: () => _openDetail(kost));
                   },
                 );
               },
