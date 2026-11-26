@@ -77,6 +77,32 @@ class AuthService {
     }
   }
 
+  // Edit hanya informasi profil milik akun yang sedang login.
+  Future<void> updateProfile({
+    required String userId,
+    required String name,
+    required String phone,
+  }) async {
+    if (_auth.currentUser?.uid != userId) {
+      throw StateError('Sesi pengguna tidak sesuai.');
+    }
+    if (name.trim().isEmpty || phone.trim().isEmpty) {
+      throw ArgumentError('Nama dan nomor HP wajib diisi.');
+    }
+    final ref = _db.collection('users').doc(userId);
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      final data = snapshot.data();
+      if (data == null || _auth.currentUser?.uid != userId) {
+        throw StateError('Profil tidak ditemukan atau sesi telah berubah.');
+      }
+      transaction.update(
+        ref,
+        UserModel.profileUpdates(data, name: name, phone: phone),
+      );
+    });
+  }
+
   // 3. FITUR LOGOUT
   Future<void> signOut() async {
     await _auth.signOut();

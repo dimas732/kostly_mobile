@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 class PropertyApi {
   static const _base = String.fromEnvironment('PROPERTY_API_URL');
 
+  static bool get isConfigured => _base.isNotEmpty;
+
   static Future<Map<String, dynamic>> _post(
     String path,
     Map<String, dynamic> body,

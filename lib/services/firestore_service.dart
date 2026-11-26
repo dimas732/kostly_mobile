@@ -22,19 +22,15 @@ class FirestoreService {
     final legacy = <String, KosModel>{};
     var verified = <String, KosModel>{};
     var stopped = false;
-    var waiting = 0;
+    var verifiedReady = false;
     void publish() {
-      if (!stopped && waiting == 0) {
+      if (!stopped && verifiedReady) {
         controller.add({...legacy, ...verified}.values.toList());
       }
     }
 
     Future<void> start() async {
       try {
-        final ids = favorites ?? (await PropertyApi.legacyIds()).toSet();
-        if (stopped) return;
-        waiting = ids.length + 1;
-        var firstQuery = true;
         final query = _db
             .collection('kos')
             .where('verification_status', isEqualTo: 'verified');
@@ -45,24 +41,27 @@ class FirestoreService {
                 if (favorites == null || favorites.contains(doc.id))
                   doc.id: KosModel.fromFirestore(doc.data(), doc.id),
             };
-            if (firstQuery) {
-              waiting--;
-              firstQuery = false;
-            }
+            verifiedReady = true;
             publish();
           }, onError: controller.addError),
         );
+        var ids = favorites ?? <String>{};
+        if (favorites == null && PropertyApi.isConfigured) {
+          try {
+            ids = (await PropertyApi.legacyIds()).toSet();
+          } on Exception {
+            return;
+          } on StateError {
+            return;
+          }
+        }
+        if (stopped) return;
         for (final id in ids) {
-          var first = true;
           void update(KosModel? kos) {
             if (kos == null) {
               legacy.remove(id);
             } else {
               legacy[id] = kos;
-            }
-            if (first) {
-              waiting--;
-              first = false;
             }
             publish();
           }
