@@ -328,12 +328,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       fit: BoxFit.contain,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'KostLy',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
+
+                    RichText(
+                      text: const TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Kost',
+                            style: TextStyle(
+                              color: Color(0xFF1A82FF),
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          TextSpan(
+                            text: 'Ly',
+                            style: TextStyle(
+                              color: Color(0xFF55A9FF),
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -341,20 +356,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   children: [
                     IconButton(
-                      onPressed: () {},
-                      icon: const Icon(
-                        Icons.notifications_none_rounded,
-                        size: 26,
-                      ),
-                      color: Colors.black87,
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.logout,
-                        size: 24,
-                        color: Colors.redAccent,
-                      ),
+                      tooltip: 'Keluar',
                       onPressed: _handleSignOut,
+                      icon: const Icon(
+                        Icons.logout_rounded,
+                        size: 20,
+                        color: Color(0xFFEF5350),
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFFFDECEC),
+                        fixedSize: const Size(40, 40),
+                        shape: const CircleBorder(),
+                      ),
                     ),
                   ],
                 ),
