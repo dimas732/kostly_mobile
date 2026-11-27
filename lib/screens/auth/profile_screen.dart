@@ -130,11 +130,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 32,
+            radius: 34,
             backgroundColor: isOwner ? Colors.green : _blue,
             child: Text(
               name.isNotEmpty ? name.characters.first.toUpperCase() : 'U',
@@ -153,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   name,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
@@ -270,7 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 18),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
@@ -584,18 +584,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ) {
     return Column(
       children: [
-        Icon(icon, color: color),
+        Icon(icon, color: color, size: 25,),
         const SizedBox(height: 6),
         Text(
           count,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
           ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
       ],
     );
   }
@@ -604,10 +604,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -615,7 +615,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -644,7 +644,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       ),
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,
@@ -656,7 +656,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: SizedBox(
         width: double.infinity,
-        height: 48,
+        height: 52,
         child: OutlinedButton.icon(
           onPressed: () async {
             // Tutup profil dulu supaya AuthGate di bawahnya bisa mengambil alih
@@ -673,7 +673,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           style: OutlinedButton.styleFrom(
             backgroundColor: Colors.white,
-            side: const BorderSide(color: Colors.redAccent),
+            side: const BorderSide(color: Color(0xFFE57373), width: 1,),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
