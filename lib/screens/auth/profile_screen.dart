@@ -10,6 +10,7 @@ import '../add_edit_kos_screen.dart';
 import '../../models/user_model.dart';
 import '../../widgets/kos_thumbnail.dart';
 import 'settings_screen.dart';
+import 'package:kost_ly/screens/help_center_screen.dart';
 
 import 'package:intl/intl.dart';
 
@@ -325,7 +326,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildMenuTile(
           icon: Icons.help_outline_rounded,
           title: 'Pusat Bantuan',
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const HelpCenterScreen(),
+                ),
+            );
+          },
         ),
       ]),
     ];
@@ -377,7 +385,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildMenuTile(
           icon: Icons.help_outline_rounded,
           title: 'Pusat Bantuan',
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const HelpCenterScreen(),
+              ),
+            );
+          },
         ),
       ]),
     ];
